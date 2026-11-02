@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -18,6 +19,7 @@ import {
   CategoryItem,
   OFFICIAL_ACCOUNTS,
   DEFAULT_ACCOUNTS,
+  OFFICIAL_STATUSES,
   DEFAULT_STATUSES,
   DEFAULT_CATEGORIES,
   getAccountKey,
@@ -149,9 +151,19 @@ export async function updateTask(
   });
 }
 
-// Delete task
-export async function deleteTask(taskId: string): Promise<void> {
+// Delete task with optional ownerUid verification for strict data isolation
+export async function deleteTask(taskId: string, expectedOwnerUid?: string): Promise<void> {
   const docRef = doc(db, 'Tasks', taskId);
+  if (expectedOwnerUid) {
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      throw new Error('Task not found or already deleted.');
+    }
+    const data = snap.data();
+    if (data.ownerUid !== expectedOwnerUid) {
+      throw new Error('Permission denied: You do not own this task document.');
+    }
+  }
   await deleteDoc(docRef);
 }
 
@@ -402,11 +414,156 @@ export async function syncOfficialAccountList(uid: string): Promise<AccountSyncR
   return report;
 }
 
+// Downloadable JSON helper for browser backups
+export function triggerJsonDownload(data: any, filename: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Failed to trigger JSON download:', err);
+  }
+}
+
+export interface StatusSyncReport {
+  totalOfficial: number;
+  retainedStatusesCount: number;
+  newStatusesAddedCount: number;
+  unlistedStatusesRemovedCount: number;
+  duplicateStatusesRemovedCount: number;
+  backupTimestamp: string;
+  backupData?: any;
+}
+
+// Synchronize and clean Status_List for authenticated user against the 27 official statuses
+export async function syncOfficialStatusList(
+  uid: string,
+  forceDownloadBackup: boolean = false
+): Promise<StatusSyncReport> {
+  const qStatus = query(
+    collection(db, 'Status_List'),
+    where('ownerUid', '==', uid)
+  );
+  const statusSnap = await getDocs(qStatus);
+
+  const officialNormSet = new Set(
+    OFFICIAL_STATUSES.map((s) => s.toLowerCase().trim())
+  );
+
+  // 1. Safe Backup of existing user Status_List before performing any deletions
+  const backupStatuses = statusSnap.docs.map((d) => ({
+    id: d.id,
+    ownerUid: d.data().ownerUid,
+    statusName: d.data().statusName || '',
+    isDefault: !!d.data().isDefault,
+    createdAt: d.data().createdAt ? d.data().createdAt.toString() : null,
+  }));
+  const backupTimestamp = new Date().toISOString();
+  const backupObj = {
+    backupType: 'Status_List_Backup',
+    timestamp: backupTimestamp,
+    ownerUid: uid,
+    count: backupStatuses.length,
+    statuses: backupStatuses,
+  };
+
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`status_list_backup_${uid}`, JSON.stringify(backupObj));
+    }
+  } catch (e) {
+    console.warn('[Status Backup] LocalStorage write error:', e);
+  }
+
+  // 2. Identify unlisted and duplicate records
+  const seenExistingNames = new Set<string>();
+  const toDeleteDocIds: string[] = [];
+  let retainedCount = 0;
+  let unlistedRemovedCount = 0;
+  let duplicateRemovedCount = 0;
+
+  for (const docSnap of statusSnap.docs) {
+    const data = docSnap.data();
+    const name = (data.statusName || '').trim();
+    const norm = name.toLowerCase();
+
+    if (!officialNormSet.has(norm)) {
+      // Unlisted / old status -> queue for deletion
+      toDeleteDocIds.push(docSnap.id);
+      unlistedRemovedCount++;
+    } else if (seenExistingNames.has(norm)) {
+      // Duplicate of already seen official status -> queue for deletion
+      toDeleteDocIds.push(docSnap.id);
+      duplicateRemovedCount++;
+    } else {
+      seenExistingNames.add(norm);
+      retainedCount++;
+    }
+  }
+
+  // If unlisted statuses exist or force download requested, create downloadable JSON backup
+  if ((unlistedRemovedCount > 0 || forceDownloadBackup) && typeof window !== 'undefined') {
+    triggerJsonDownload(backupObj, `status_list_backup_${uid}_${Date.now()}.json`);
+  }
+
+  // 3. Delete unlisted and duplicate records
+  for (const docId of toDeleteDocIds) {
+    await deleteDoc(doc(db, 'Status_List', docId));
+  }
+
+  // 4. Add missing official statuses
+  let newAddedCount = 0;
+  for (const st of OFFICIAL_STATUSES) {
+    const norm = st.toLowerCase().trim();
+    if (!seenExistingNames.has(norm)) {
+      await addDoc(collection(db, 'Status_List'), {
+        ownerUid: uid,
+        statusName: st,
+        isDefault: true,
+        createdAt: serverTimestamp(),
+      });
+      newAddedCount++;
+    }
+  }
+
+  const report: StatusSyncReport = {
+    totalOfficial: OFFICIAL_STATUSES.length,
+    retainedStatusesCount: retainedCount,
+    newStatusesAddedCount: newAddedCount,
+    unlistedStatusesRemovedCount: unlistedRemovedCount,
+    duplicateStatusesRemovedCount: duplicateRemovedCount,
+    backupTimestamp,
+    backupData: backupObj,
+  };
+
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`status_sync_report_${uid}`, JSON.stringify(report));
+    }
+  } catch (e) {
+    // Ignore quota issues
+  }
+
+  console.info('[Status Sync Report]:', report);
+  return report;
+}
+
 // Initialize workspace for users with default accounts, statuses & sample tasks
 export async function initializeUserWorkspace(uid: string): Promise<AccountSyncReport | undefined> {
   try {
-    // Perform Phase 1 Official Master List synchronization & cleanup
+    // 1. Perform Phase 1 Official Master List synchronization & cleanup
     const syncReport = await syncOfficialAccountList(uid);
+
+    // 2. Perform Feature 1 Official Status List synchronization & cleanup (27 official statuses)
+    await syncOfficialStatusList(uid);
 
     const qAcc = query(
       collection(db, 'Account_List'),
@@ -415,45 +572,37 @@ export async function initializeUserWorkspace(uid: string): Promise<AccountSyncR
     const accSnap = await getDocs(qAcc);
     const isNewUser = accSnap.empty;
 
-    // Check and seed missing default statuses
-    const qStatus = query(
-      collection(db, 'Status_List'),
-      where('ownerUid', '==', uid)
-    );
-    const statusSnap = await getDocs(qStatus);
-    const existingStatuses = new Set(
-      statusSnap.docs.map((d) => (d.data().statusName || '').toLowerCase().trim())
-    );
+    // Check and seed missing default categories (only on initial seed so intentional deletions are respected)
+    const seedFlagKey = `category_defaults_seeded_${uid}`;
+    const alreadySeeded = typeof window !== 'undefined' && localStorage.getItem(seedFlagKey) === 'true';
 
-    for (const st of DEFAULT_STATUSES) {
-      if (!existingStatuses.has(st.toLowerCase().trim())) {
-        await addDoc(collection(db, 'Status_List'), {
-          ownerUid: uid,
-          statusName: st,
-          isDefault: true,
-          createdAt: serverTimestamp(),
-        });
+    if (!alreadySeeded) {
+      const qCat = query(
+        collection(db, 'Category_List'),
+        where('ownerUid', '==', uid)
+      );
+      const catSnap = await getDocs(qCat);
+      const existingCategories = new Set(
+        catSnap.docs.map((d) => (d.data().categoryName || '').toLowerCase().trim())
+      );
+
+      for (const cat of DEFAULT_CATEGORIES) {
+        if (!existingCategories.has(cat.toLowerCase().trim())) {
+          await addDoc(collection(db, 'Category_List'), {
+            ownerUid: uid,
+            categoryName: cat,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
       }
-    }
 
-    // Check and seed missing default categories
-    const qCat = query(
-      collection(db, 'Category_List'),
-      where('ownerUid', '==', uid)
-    );
-    const catSnap = await getDocs(qCat);
-    const existingCategories = new Set(
-      catSnap.docs.map((d) => (d.data().categoryName || '').toLowerCase().trim())
-    );
-
-    for (const cat of DEFAULT_CATEGORIES) {
-      if (!existingCategories.has(cat.toLowerCase().trim())) {
-        await addDoc(collection(db, 'Category_List'), {
-          ownerUid: uid,
-          categoryName: cat,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(seedFlagKey, 'true');
+        } catch (e) {
+          console.warn('LocalStorage quota warning:', e);
+        }
       }
     }
 

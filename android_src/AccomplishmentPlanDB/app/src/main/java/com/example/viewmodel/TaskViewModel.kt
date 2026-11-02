@@ -1,0 +1,233 @@
+package com.example.viewmodel
+
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.TaskRepository
+import com.example.model.AccountItem
+import com.example.model.AccountMaster
+import com.example.model.Priority
+import com.example.model.StatusItem
+import com.example.model.TaskItem
+import com.example.ui.screens.signOutUser
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.auth
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+enum class ScreenState {
+    TASK_LIST,
+    UPDATE_TASK,
+    NEW_TASK
+}
+
+class TaskViewModel(
+    private val repository: TaskRepository = TaskRepository(),
+    private val auth: FirebaseAuth = Firebase.auth
+) : ViewModel() {
+
+    private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
+
+    private val _currentScreen = MutableStateFlow(ScreenState.TASK_LIST)
+    val currentScreen: StateFlow<ScreenState> = _currentScreen.asStateFlow()
+
+    private val _selectedTask = MutableStateFlow<TaskItem?>(null)
+    val selectedTask: StateFlow<TaskItem?> = _selectedTask.asStateFlow()
+
+    private val _selectedMonth = MutableStateFlow("Nov-2026")
+    val selectedMonth: StateFlow<String> = _selectedMonth.asStateFlow()
+
+    private val _availableMonths = MutableStateFlow(AccountMaster.defaultMonths)
+    val availableMonths: StateFlow<List<String>> = _availableMonths.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _isSearchOpen = MutableStateFlow(false)
+    val isSearchOpen: StateFlow<Boolean> = _isSearchOpen.asStateFlow()
+
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    init {
+        auth.addAuthStateListener { firebaseAuth ->
+            val user = firebaseAuth.currentUser
+            _currentUser.value = user
+            if (user != null) {
+                viewModelScope.launch {
+                    repository.initializeUserWorkspace(seedSampleTasks = true)
+                }
+            }
+        }
+    }
+
+    // Dynamic tasks for current user and month from Firestore
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val tasks: StateFlow<List<TaskItem>> = combine(_currentUser, _selectedMonth) { user, month ->
+        user to month
+    }.flatMapLatest { (user, month) ->
+        if (user != null) {
+            repository.observeTasks(month)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Dynamic accounts for current user
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val accounts: StateFlow<List<AccountItem>> = _currentUser.flatMapLatest { user ->
+        if (user != null) {
+            repository.observeAccounts()
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Dynamic statuses for current user
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val customStatuses: StateFlow<List<StatusItem>> = _currentUser.flatMapLatest { user ->
+        if (user != null) {
+            repository.observeStatuses()
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val availableStatusNames: StateFlow<List<String>> = customStatuses.combine(flowOf(AccountMaster.defaultStatuses)) { custom, defaults ->
+        val names = custom.map { it.statusName }
+        if (names.isNotEmpty()) names else defaults
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccountMaster.defaultStatuses)
+
+    // Filtered tasks by search query
+    val filteredTasks = combine(tasks, _searchQuery) { taskList, query ->
+        if (query.isBlank()) {
+            taskList
+        } else {
+            taskList.filter { task ->
+                task.description.contains(query, ignoreCase = true) ||
+                task.unit.contains(query, ignoreCase = true) ||
+                task.status.contains(query, ignoreCase = true) ||
+                task.accountName.contains(query, ignoreCase = true) ||
+                task.taskNumber.toString().contains(query)
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val totalItemsCount = tasks.combine(flowOf(Unit)) { list, _ ->
+        list.size
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val pendingItemsCount = tasks.combine(flowOf(Unit)) { list, _ ->
+        list.count { !it.isDone }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    fun openUpdateTask(task: TaskItem) {
+        _selectedTask.value = task
+        _currentScreen.value = ScreenState.UPDATE_TASK
+    }
+
+    fun openNewTask() {
+        val nextNumber = (tasks.value.maxOfOrNull { it.taskNumber } ?: 0) + 1
+        val uid = auth.currentUser?.uid ?: ""
+        _selectedTask.value = TaskItem(
+            id = "",
+            ownerUid = uid,
+            taskNumber = nextNumber,
+            description = "",
+            amount = "",
+            paymentMode = "Cash",
+            unit = "Unit-1",
+            priority = "High",
+            status = "Draft Ready",
+            expectedDate = "17 Nov 2026",
+            accountName = "Civil Maintenance",
+            accountCode = AccountMaster.getCodeForAccount("Civil Maintenance"),
+            remarks = "",
+            monthYear = _selectedMonth.value
+        )
+        _currentScreen.value = ScreenState.NEW_TASK
+    }
+
+    fun navigateBackToTaskList() {
+        _currentScreen.value = ScreenState.TASK_LIST
+        _selectedTask.value = null
+    }
+
+    fun updateTask(updatedTask: TaskItem) {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            repository.updateTask(updatedTask)
+            _isSyncing.value = false
+            navigateBackToTaskList()
+        }
+    }
+
+    fun quickUpdateStatus(taskId: String, newStatus: String) {
+        viewModelScope.launch {
+            repository.quickUpdateStatus(taskId, newStatus)
+        }
+    }
+
+    fun addTask(newTask: TaskItem) {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            repository.addTask(newTask)
+            _isSyncing.value = false
+            navigateBackToTaskList()
+        }
+    }
+
+    fun setSelectedMonth(month: String) {
+        _selectedMonth.value = month
+    }
+
+    fun addMonth(newMonth: String) {
+        if (newMonth.isNotBlank() && !_availableMonths.value.contains(newMonth)) {
+            _availableMonths.value = _availableMonths.value + newMonth
+            _selectedMonth.value = newMonth
+        }
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun toggleSearch() {
+        _isSearchOpen.value = !_isSearchOpen.value
+        if (!_isSearchOpen.value) {
+            _searchQuery.value = ""
+        }
+    }
+
+    fun addCustomStatus(status: String) {
+        viewModelScope.launch {
+            repository.addStatus(status)
+        }
+    }
+
+    fun removeCustomStatus(statusName: String) {
+        viewModelScope.launch {
+            val item = customStatuses.value.firstOrNull { it.statusName == statusName }
+            if (item != null && item.id.isNotBlank()) {
+                repository.removeStatus(item.id)
+            }
+        }
+    }
+
+    fun signOut(context: Context) {
+        signOutUser(context, onSignedOut = {
+            _currentUser.value = null
+            _currentScreen.value = ScreenState.TASK_LIST
+        }, viewModelScope)
+    }
+}

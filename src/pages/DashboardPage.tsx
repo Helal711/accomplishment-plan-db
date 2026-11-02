@@ -18,6 +18,7 @@ import {
   updateCategory,
   deleteCategory,
   syncOfficialAccountList,
+  syncOfficialStatusList,
 } from '../firebase/db';
 import { TaskItem, AccountItem, StatusItem, CategoryItem, DEFAULT_STATUSES, DEFAULT_MONTHS } from '../types';
 import { AppHeader } from '../components/AppHeader';
@@ -50,6 +51,8 @@ export const DashboardPage: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState<boolean>(false);
+  const [deleteFeedback, setDeleteFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Subscribe to tasks for current user and month
   useEffect(() => {
@@ -134,12 +137,26 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!taskToDelete) return;
+    if (!taskToDelete || isDeletingTask) return;
     try {
-      await deleteTask(taskToDelete.id);
+      setIsDeletingTask(true);
+      await deleteTask(taskToDelete.id, currentUser?.uid);
+      const deletedNumber = taskToDelete.taskNumber;
       setTaskToDelete(null);
-    } catch (err) {
+      setDeleteFeedback({
+        type: 'success',
+        message: `Task #${deletedNumber} deleted successfully.`,
+      });
+      setTimeout(() => setDeleteFeedback(null), 4000);
+    } catch (err: any) {
       console.error('Failed to delete task:', err);
+      setDeleteFeedback({
+        type: 'error',
+        message: err.message || 'Failed to delete task.',
+      });
+      setTimeout(() => setDeleteFeedback(null), 4000);
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
@@ -169,6 +186,17 @@ export const DashboardPage: React.FC = () => {
 
         {/* Content Container */}
         <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 pb-24">
+          {deleteFeedback && (
+            <div
+              className={`mb-3 p-3 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all ${
+                deleteFeedback.type === 'success'
+                  ? 'bg-green-50 text-green-800 border border-green-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}
+            >
+              <span>{deleteFeedback.message}</span>
+            </div>
+          )}
           {loadingTasks ? (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-3 border-app-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -249,6 +277,11 @@ export const DashboardPage: React.FC = () => {
         onRemoveStatus={async (id) => {
           await deleteStatus(id);
         }}
+        onSyncOfficialStatuses={async () => {
+          if (currentUser) {
+            return await syncOfficialStatusList(currentUser.uid, true);
+          }
+        }}
         onClose={() => setShowStatusModal(false)}
       />
 
@@ -288,8 +321,8 @@ export const DashboardPage: React.FC = () => {
       <ConfirmDeleteModal
         isOpen={!!taskToDelete}
         title="Delete Task"
-        message={`Are you sure you want to delete Task #${taskToDelete?.taskNumber}: "${taskToDelete?.description}"? This action cannot be undone.`}
-        confirmText="Delete Task"
+        message="Are you sure you want to delete this task? This action cannot be undone."
+        confirmText="Delete"
         onConfirm={handleConfirmDelete}
         onCancel={() => setTaskToDelete(null)}
       />

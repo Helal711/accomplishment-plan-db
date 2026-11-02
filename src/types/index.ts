@@ -208,14 +208,37 @@ export const OFFICIAL_ACCOUNTS = [
   { accountName: "Software", accountCode: "1201521" },
 ];
 
-export const DEFAULT_STATUSES = [
+export const OFFICIAL_STATUSES = [
   'Draft Ready',
-  'Done',
+  'Advance Draft Ready',
   'Advance Ready',
+  'Advance Done',
+  'Payment Approval Ready',
+  'Done',
+  'CS Ready',
+  'Approval in Audit',
+  'Approval in Audit (HOD)',
+  'CS in Accounts',
+  'Approval in Accounts',
+  'WO Done',
+  'Waiting for CFO Sign',
+  'Waiting for MD Sign',
+  'Cancel from CFO',
+  'Cancel from HOD',
+  'Cancel',
   'Pending',
-  'In Progress',
-  'Cancelled',
-];
+  'Settlement',
+  'Hold from MR Team',
+  'Hold from CFO',
+  'Hold from MD',
+  'Done from HOD',
+  'Payment Pending',
+  'Next Month',
+  'No Need',
+  'Unavailable',
+] as const;
+
+export const DEFAULT_STATUSES = [...OFFICIAL_STATUSES];
 
 export const DEFAULT_UNITS = ['Unit-1', 'Unit-2', 'Unit-3'];
 

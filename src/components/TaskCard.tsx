@@ -193,21 +193,30 @@ export const PriorityBadge: React.FC<{ priority: Priority | string }> = ({ prior
 };
 
 export function getStatusColor(status: string) {
-  const s = (status || '').toLowerCase();
-  if (s === 'done') {
+  const s = (status || '').toLowerCase().trim();
+  if (s === 'done' || s === 'done from hod' || s === 'advance done' || s === 'wo done') {
     return { bg: '#E8F5E9', text: '#2E7D32', border: '#A5D6A7' };
   }
-  if (s === 'advance ready') {
+  if (s.includes('advance') || s.includes('payment approval') || s.includes('cs ready')) {
     return { bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' };
   }
-  if (s === 'draft ready') {
+  if (s.includes('draft')) {
     return { bg: '#FEF9C3', text: '#854D0E', border: '#FDE047' };
   }
-  if (s === 'in progress') {
-    return { bg: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' };
+  if (s.includes('approval') || s.includes('in accounts') || s.includes('waiting')) {
+    return { bg: '#F3E8FF', text: '#6B21A8', border: '#D8B4FE' };
   }
-  if (s === 'cancelled') {
+  if (s.includes('cancel') || s === 'no need' || s === 'unavailable') {
     return { bg: '#FEE2E2', text: '#B91C1C', border: '#FCA5A5' };
+  }
+  if (s.includes('hold')) {
+    return { bg: '#FFEDD5', text: '#C2410C', border: '#FDBA74' };
+  }
+  if (s === 'settlement' || s === 'next month') {
+    return { bg: '#E0F2FE', text: '#0369A1', border: '#BAE6FD' };
+  }
+  if (s === 'pending' || s === 'payment pending') {
+    return { bg: '#FFF7ED', text: '#EA580C', border: '#FED7AA' };
   }
   return { bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB' };
 }

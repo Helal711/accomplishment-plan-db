@@ -111,10 +111,15 @@ export const TaskFormPage: React.FC = () => {
     );
   }, [accountSearchQuery]);
 
-  // Combine statuses
-  const combinedStatusNames = Array.from(
-    new Set([...DEFAULT_STATUSES, ...statuses.map((s) => s.statusName)])
-  );
+  // Combine statuses (preserving old task's status even if not in official list)
+  const combinedStatusNames = useMemo(() => {
+    const custom = statuses.map((s) => s.statusName);
+    const set = new Set([...DEFAULT_STATUSES, ...custom]);
+    if (status && !set.has(status)) {
+      set.add(status);
+    }
+    return Array.from(set);
+  }, [statuses, status]);
 
   // Combine categories
   const combinedCategoryNames = useMemo(() => {
@@ -192,10 +197,10 @@ export const TaskFormPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!taskId || isNew) return;
+    if (!taskId || isNew || !currentUser) return;
     try {
       setSaving(true);
-      await deleteTask(taskId);
+      await deleteTask(taskId, currentUser.uid);
       setShowDeleteModal(false);
       navigate('/');
     } catch (err: any) {
@@ -472,6 +477,7 @@ export const TaskFormPage: React.FC = () => {
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full pl-10 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent bg-white font-medium text-gray-900"
                 >
+                  <option value="">-- Select Category (Optional) --</option>
                   {combinedCategoryNames.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -541,8 +547,8 @@ export const TaskFormPage: React.FC = () => {
       <ConfirmDeleteModal
         isOpen={showDeleteModal}
         title="Delete Task"
-        message={`Are you sure you want to delete Task #${taskNumber}: "${description}"? This action cannot be reversed.`}
-        confirmText="Confirm Delete"
+        message="Are you sure you want to delete this task? This action cannot be undone."
+        confirmText="Delete"
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteModal(false)}
       />

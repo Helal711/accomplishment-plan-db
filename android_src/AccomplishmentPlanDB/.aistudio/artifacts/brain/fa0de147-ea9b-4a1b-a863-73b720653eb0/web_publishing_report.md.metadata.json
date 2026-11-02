@@ -1,0 +1,5 @@
+{
+  "summary":  "Web application pre-publishing report for Accomplishment Plan DB. Details the 31-file upload package (AccomplishmentPlanDB-Web.zip), GitHub Actions workflow (.github/workflows/deploy-web.yml), Vite base configuration, Firebase Web App configuration audit, and step-by-step instructions for publishing to https://github.com/Helal711/accomplishment-plan-db.",
+  "updatedAt":  "2026-11-01T08:59:26.017195502Z",
+  "userFacing":  true
+}
