@@ -3,6 +3,7 @@ package com.example.data
 import android.util.Log
 import com.example.model.AccountItem
 import com.example.model.AccountMaster
+import com.example.model.CategoryItem
 import com.example.model.Priority
 import com.example.model.StatusItem
 import com.example.model.TaskItem
@@ -133,6 +134,27 @@ class TaskRepository(
         }
     }
 
+    suspend fun deleteTask(taskId: String): Result<Unit> {
+        return try {
+            val uid = requireUserId()
+            require(taskId.isNotBlank()) { "Task ID must not be blank" }
+            val docRef = db.collection("Tasks").document(taskId)
+            val snap = docRef.get().await()
+            if (!snap.exists()) {
+                return Result.failure(Exception("Task not found"))
+            }
+            val owner = snap.getString("ownerUid")
+            if (owner != uid) {
+                return Result.failure(Exception("Permission denied: You do not own this task document"))
+            }
+            docRef.delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to delete task $taskId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun quickUpdateStatus(taskId: String, newStatus: String): Result<Unit> {
         return try {
             val uid = requireUserId()
@@ -192,6 +214,63 @@ class TaskRepository(
         }
     }
 
+    fun observeCategories(): Flow<List<CategoryItem>> {
+        val uid = auth.currentUser?.uid ?: return flowOf(emptyList())
+        return db.collection("Category_List")
+            .whereEqualTo("ownerUid", uid)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { it.toObject(CategoryItem::class.java) }
+            }
+            .catch { e ->
+                Log.e(tag, "Error observing categories: ${e.message}", e)
+                emit(emptyList())
+            }
+    }
+
+    suspend fun addCategory(categoryName: String): Result<String> {
+        return try {
+            val uid = requireUserId()
+            val docRef = db.collection("Category_List").add(
+                mapOf(
+                    "ownerUid" to uid,
+                    "categoryName" to categoryName.trim(),
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(docRef.id)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to add category: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateCategory(categoryId: String, newName: String): Result<Unit> {
+        return try {
+            db.collection("Category_List").document(categoryId).update(
+                mapOf(
+                    "categoryName" to newName.trim(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to update category: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteCategory(categoryId: String): Result<Unit> {
+        return try {
+            db.collection("Category_List").document(categoryId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to delete category: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     // Initialize fresh workspace with default accounts & statuses, and seed template tasks if desired
     suspend fun initializeUserWorkspace(seedSampleTasks: Boolean = true) {
         val uid = requireUserId()
@@ -234,25 +313,55 @@ class TaskRepository(
                 }
             }
 
-            // Fetch existing statuses
+            // Fetch existing statuses and clean up unlisted/duplicate entries
             val existingStatusesSnap = db.collection("Status_List")
                 .whereEqualTo("ownerUid", uid)
                 .get()
                 .await()
 
-            val existingStatusNames = existingStatusesSnap.documents.mapNotNull {
-                it.getString("statusName")?.lowercase()?.trim()
-            }.toSet()
+            val officialStatusesSet = AccountMaster.defaultStatuses.map { it.lowercase().trim() }.toSet()
+            val seenStatusNames = mutableSetOf<String>()
 
-            // Seed missing default statuses
+            // Remove unlisted old statuses and duplicate records
+            existingStatusesSnap.documents.forEach { doc ->
+                val name = (doc.getString("statusName") ?: "").lowercase().trim()
+                if (!officialStatusesSet.contains(name) || seenStatusNames.contains(name)) {
+                    doc.reference.delete().await()
+                } else {
+                    seenStatusNames.add(name)
+                }
+            }
+
+            // Seed missing official 27 statuses
             AccountMaster.defaultStatuses.forEach { statusName ->
-                if (!existingStatusNames.contains(statusName.lowercase().trim())) {
+                val norm = statusName.lowercase().trim()
+                if (!seenStatusNames.contains(norm)) {
                     db.collection("Status_List").add(
                         mapOf(
                             "ownerUid" to uid,
                             "statusName" to statusName,
                             "isDefault" to true,
                             "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    ).await()
+                    seenStatusNames.add(norm)
+                }
+            }
+
+            // Category seeding: Seed missing default categories only if user has no categories yet
+            val existingCategoriesSnap = db.collection("Category_List")
+                .whereEqualTo("ownerUid", uid)
+                .get()
+                .await()
+
+            if (existingCategoriesSnap.isEmpty) {
+                AccountMaster.defaultCategories.forEach { categoryName ->
+                    db.collection("Category_List").add(
+                        mapOf(
+                            "ownerUid" to uid,
+                            "categoryName" to categoryName.trim(),
+                            "createdAt" to FieldValue.serverTimestamp(),
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
                     ).await()
                 }

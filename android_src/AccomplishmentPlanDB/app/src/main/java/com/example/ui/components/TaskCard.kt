@@ -17,11 +17,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +55,7 @@ fun TaskCard(
     availableStatuses: List<String>,
     onCardClick: () -> Unit,
     onStatusChange: (String) -> Unit,
+    onDeleteClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var statusMenuExpanded by remember { mutableStateOf(false) }
@@ -112,84 +115,123 @@ fun TaskCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Factory Unit Badge: [🏢 Unit-1]
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = UnitChipBg,
-                    modifier = Modifier.testTag("unit_badge_${task.id}")
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Apartment,
-                            contentDescription = "Unit",
-                            tint = UnitChipText,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = task.unit,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 11.5.sp,
-                                color = UnitChipText
-                            )
-                        )
-                    }
-                }
-
-                // Status Pill with Dropdown
-                Box {
-                    val (bgColor, textColor, borderColor) = getStatusColorTriple(task.status)
-
+                // Factory Unit Badge & Category Badge
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = bgColor,
-                        border = BorderStroke(1.dp, borderColor),
-                        modifier = Modifier
-                            .clickable { statusMenuExpanded = true }
-                            .testTag("status_pill_${task.id}")
+                        shape = RoundedCornerShape(4.dp),
+                        color = UnitChipBg,
+                        modifier = Modifier.testTag("unit_badge_${task.id}")
                     ) {
                         Row(
-                            modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 3.dp, bottom = 3.dp),
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = task.status,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp,
-                                    color = textColor
-                                )
-                            )
                             Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Change Status",
-                                tint = textColor,
-                                modifier = Modifier.size(16.dp)
+                                imageVector = Icons.Default.Apartment,
+                                contentDescription = "Unit",
+                                tint = UnitChipText,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = task.unit,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.5.sp,
+                                    color = UnitChipText
+                                )
                             )
                         }
                     }
 
-                    DropdownMenu(
-                        expanded = statusMenuExpanded,
-                        onDismissRequest = { statusMenuExpanded = false }
-                    ) {
-                        availableStatuses.forEach { statusOption ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = statusOption,
-                                        fontWeight = if (statusOption == task.status) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 13.sp
+                    if (task.category.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFF3F4F6)
+                        ) {
+                            Text(
+                                text = task.category,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF4B5563)
+                                ),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Status Pill with Dropdown & Delete Icon
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box {
+                        val (bgColor, textColor, borderColor) = getStatusColorTriple(task.status)
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = bgColor,
+                            border = BorderStroke(1.dp, borderColor),
+                            modifier = Modifier
+                                .clickable { statusMenuExpanded = true }
+                                .testTag("status_pill_${task.id}")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 3.dp, bottom = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = task.status,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp,
+                                        color = textColor
                                     )
-                                },
-                                onClick = {
-                                    statusMenuExpanded = false
-                                    onStatusChange(statusOption)
-                                }
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Change Status",
+                                    tint = textColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = statusMenuExpanded,
+                            onDismissRequest = { statusMenuExpanded = false }
+                        ) {
+                            availableStatuses.forEach { statusOption ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = statusOption,
+                                            fontWeight = if (statusOption == task.status) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 13.sp
+                                        )
+                                    },
+                                    onClick = {
+                                        statusMenuExpanded = false
+                                        onStatusChange(statusOption)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (onDeleteClick != null) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = onDeleteClick,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("delete_task_${task.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Task",
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -228,11 +270,25 @@ fun PriorityIndicator(priority: Priority) {
 }
 
 fun getStatusColorTriple(status: String): Triple<Color, Color, Color> {
-    return when (status.lowercase()) {
-        "done" -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Color(0xFFA5D6A7))
-        "advance ready" -> Triple(Color(0xFFFEF3C7), Color(0xFFB45309), Color(0xFFFDE68A))
-        "draft ready" -> Triple(Color(0xFFFEF9C3), Color(0xFF854D0E), Color(0xFFFDE047))
-        "in progress" -> Triple(Color(0xFFEFF6FF), Color(0xFF1D4ED8), Color(0xFF93C5FD))
-        else -> Triple(Color(0xFFF3F4F6), Color(0xFF4B5563), Color(0xFFD1D5DB))
+    val s = status.lowercase().trim()
+    return when {
+        s == "done" || s == "done from hod" || s == "advance done" || s == "wo done" ->
+            Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Color(0xFFA5D6A7))
+        s.contains("advance") || s.contains("payment approval") || s.contains("cs ready") ->
+            Triple(Color(0xFFFEF3C7), Color(0xFFB45309), Color(0xFFFDE68A))
+        s.contains("draft") ->
+            Triple(Color(0xFFFEF9C3), Color(0xFF854D0E), Color(0xFFFDE047))
+        s.contains("approval") || s.contains("in accounts") || s.contains("waiting") ->
+            Triple(Color(0xFFF3E8FF), Color(0xFF6B21A8), Color(0xFFD8B4FE))
+        s.contains("cancel") || s == "no need" || s == "unavailable" ->
+            Triple(Color(0xFFFEE2E2), Color(0xFFB91C1C), Color(0xFFFCA5A5))
+        s.contains("hold") ->
+            Triple(Color(0xFFFFEDD5), Color(0xFFC2410C), Color(0xFFFDBA74))
+        s == "settlement" || s == "next month" ->
+            Triple(Color(0xFFE0F2FE), Color(0xFF0369A1), Color(0xFFBAE6FD))
+        s == "pending" || s == "payment pending" ->
+            Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), Color(0xFFFED7AA))
+        else ->
+            Triple(Color(0xFFF3F4F6), Color(0xFF4B5563), Color(0xFFD1D5DB))
     }
 }

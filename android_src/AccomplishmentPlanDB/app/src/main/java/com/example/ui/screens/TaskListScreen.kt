@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import android.widget.Toast
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +42,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.example.model.TaskItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,6 +59,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Folder
+import com.example.ui.components.CategoryManagerDialog
 import com.example.ui.components.ExportDialog
 import com.example.ui.components.MonthSelectorDialog
 import com.example.ui.components.StatusManagerDialog
@@ -78,11 +84,14 @@ fun TaskListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isSearchOpen by viewModel.isSearchOpen.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+    val categories by viewModel.categories.collectAsState(initial = emptyList())
 
     var showMonthDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showStatusDialog by remember { mutableStateOf(false) }
+    var showCategoryDialog by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
+    var taskToDelete by remember { mutableStateOf<TaskItem?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -144,6 +153,17 @@ fun TaskListScreen(
                                 )
                                 Divider()
                             }
+
+                            DropdownMenuItem(
+                                text = { Text("Category Management", fontSize = 13.5.sp) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                },
+                                onClick = {
+                                    showSettingsMenu = false
+                                    showCategoryDialog = true
+                                }
+                            )
 
                             DropdownMenuItem(
                                 text = { Text("Dynamic Status Settings", fontSize = 13.5.sp) },
@@ -383,7 +403,8 @@ fun TaskListScreen(
                                 if (task.id.isNotBlank()) {
                                     viewModel.quickUpdateStatus(task.id, newStatus)
                                 }
-                            }
+                            },
+                            onDeleteClick = { taskToDelete = task }
                         )
                     }
                 }
@@ -415,6 +436,66 @@ fun TaskListScreen(
             onAddStatus = { viewModel.addCustomStatus(it) },
             onRemoveStatus = { viewModel.removeCustomStatus(it) },
             onDismissRequest = { showStatusDialog = false }
+        )
+    }
+
+    if (showCategoryDialog) {
+        CategoryManagerDialog(
+            categories = categories,
+            onAddCategory = { name, cb -> viewModel.addCategory(name, cb) },
+            onUpdateCategory = { id, name, cb -> viewModel.updateCategory(id, name, cb) },
+            onDeleteCategory = { id, cb -> viewModel.deleteCategory(id, cb) },
+            onDismissRequest = { showCategoryDialog = false }
+        )
+    }
+
+    taskToDelete?.let { task ->
+        AlertDialog(
+            onDismissRequest = { taskToDelete = null },
+            title = {
+                Text(
+                    text = "Delete Task",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete this task? This action cannot be undone.",
+                    fontSize = 14.sp,
+                    color = Color(0xFF374151)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val taskId = task.id
+                        taskToDelete = null
+                        if (taskId.isNotBlank()) {
+                            viewModel.deleteTask(taskId) { success, msg ->
+                                if (success) {
+                                    Toast.makeText(context, "Task deleted successfully", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, msg ?: "Failed to delete task", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text(
+                        text = "Delete",
+                        color = Color(0xFFDC2626),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { taskToDelete = null }
+                ) {
+                    Text("Cancel", color = Color(0xFF4B5563))
+                }
+            }
         )
     }
 }

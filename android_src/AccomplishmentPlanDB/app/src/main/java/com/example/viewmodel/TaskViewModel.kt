@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.TaskRepository
 import com.example.model.AccountItem
 import com.example.model.AccountMaster
+import com.example.model.CategoryItem
 import com.example.model.Priority
 import com.example.model.StatusItem
 import com.example.model.TaskItem
@@ -108,6 +109,21 @@ class TaskViewModel(
         if (names.isNotEmpty()) names else defaults
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccountMaster.defaultStatuses)
 
+    // Dynamic categories for current user
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val categories: StateFlow<List<CategoryItem>> = _currentUser.flatMapLatest { user ->
+        if (user != null) {
+            repository.observeCategories()
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val availableCategoryNames: StateFlow<List<String>> = categories.combine(flowOf(AccountMaster.defaultCategories)) { custom, defaults ->
+        val names = custom.map { it.categoryName }
+        if (names.isNotEmpty()) names else defaults
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccountMaster.defaultCategories)
+
     // Filtered tasks by search query
     val filteredTasks = combine(tasks, _searchQuery) { taskList, query ->
         if (query.isBlank()) {
@@ -118,6 +134,7 @@ class TaskViewModel(
                 task.unit.contains(query, ignoreCase = true) ||
                 task.status.contains(query, ignoreCase = true) ||
                 task.accountName.contains(query, ignoreCase = true) ||
+                task.category.contains(query, ignoreCase = true) ||
                 task.taskNumber.toString().contains(query)
             }
         }
@@ -153,6 +170,7 @@ class TaskViewModel(
             accountName = "Civil Maintenance",
             accountCode = AccountMaster.getCodeForAccount("Civil Maintenance"),
             remarks = "",
+            category = "",
             monthYear = _selectedMonth.value
         )
         _currentScreen.value = ScreenState.NEW_TASK
@@ -184,6 +202,20 @@ class TaskViewModel(
             repository.addTask(newTask)
             _isSyncing.value = false
             navigateBackToTaskList()
+        }
+    }
+
+    fun deleteTask(taskId: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            val res = repository.deleteTask(taskId)
+            _isSyncing.value = false
+            if (res.isSuccess) {
+                navigateBackToTaskList()
+                onResult(true, null)
+            } else {
+                onResult(false, res.exceptionOrNull()?.message ?: "Failed to delete task")
+            }
         }
     }
 
@@ -220,6 +252,59 @@ class TaskViewModel(
             val item = customStatuses.value.firstOrNull { it.statusName == statusName }
             if (item != null && item.id.isNotBlank()) {
                 repository.removeStatus(item.id)
+            }
+        }
+    }
+
+    fun addCategory(categoryName: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val trimmed = categoryName.trim()
+            if (trimmed.isBlank()) {
+                onResult(false, "Category name cannot be empty")
+                return@launch
+            }
+            val existing = categories.value.any { it.categoryName.equals(trimmed, ignoreCase = true) }
+            if (existing) {
+                onResult(false, "Category \"$trimmed\" already exists")
+                return@launch
+            }
+            val res = repository.addCategory(trimmed)
+            if (res.isSuccess) {
+                onResult(true, null)
+            } else {
+                onResult(false, res.exceptionOrNull()?.message ?: "Failed to add category")
+            }
+        }
+    }
+
+    fun updateCategory(categoryId: String, newName: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val trimmed = newName.trim()
+            if (trimmed.isBlank()) {
+                onResult(false, "Category name cannot be empty")
+                return@launch
+            }
+            val existing = categories.value.any { it.id != categoryId && it.categoryName.equals(trimmed, ignoreCase = true) }
+            if (existing) {
+                onResult(false, "Category \"$trimmed\" already exists")
+                return@launch
+            }
+            val res = repository.updateCategory(categoryId, trimmed)
+            if (res.isSuccess) {
+                onResult(true, null)
+            } else {
+                onResult(false, res.exceptionOrNull()?.message ?: "Failed to update category")
+            }
+        }
+    }
+
+    fun deleteCategory(categoryId: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = repository.deleteCategory(categoryId)
+            if (res.isSuccess) {
+                onResult(true, null)
+            } else {
+                onResult(false, res.exceptionOrNull()?.message ?: "Failed to delete category")
             }
         }
     }

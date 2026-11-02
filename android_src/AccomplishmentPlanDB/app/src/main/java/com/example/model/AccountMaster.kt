@@ -172,6 +172,55 @@ object AccountMaster {
 
     val defaultUnits = listOf("Unit-1", "Unit-2", "Unit-3")
     val defaultPayments = listOf("Cash", "Bank", "Cheque")
-    val defaultStatuses = listOf("Draft Ready", "Done", "Advance Ready", "Pending", "In Progress", "Cancelled")
+    val defaultStatuses = listOf(
+        "Draft Ready",
+        "Advance Draft Ready",
+        "Advance Ready",
+        "Advance Done",
+        "Payment Approval Ready",
+        "Done",
+        "CS Ready",
+        "Approval in Audit",
+        "Approval in Audit (HOD)",
+        "CS in Accounts",
+        "Approval in Accounts",
+        "WO Done",
+        "Waiting for CFO Sign",
+        "Waiting for MD Sign",
+        "Cancel from CFO",
+        "Cancel from HOD",
+        "Cancel",
+        "Pending",
+        "Settlement",
+        "Hold from MR Team",
+        "Hold from CFO",
+        "Hold from MD",
+        "Done from HOD",
+        "Payment Pending",
+        "Next Month",
+        "No Need",
+        "Unavailable"
+    )
     val defaultMonths = listOf("Nov-2026", "Dec-2026", "Jan-2027", "Oct-2026")
+    val defaultCategories = listOf(
+        "Furniture & fixture",
+        "Compliance & fire safety",
+        "Materials",
+        "Service",
+        "Food",
+        "Medical",
+        "Book Printing",
+        "Accessories & others",
+        "Auxiliary facilities",
+        "Renovation",
+        "Electrical",
+        "Machinery",
+        "Needle",
+        "Sewing spare parts",
+        "Cutting spare parts",
+        "Hardware",
+        "Printing Section",
+        "LAB",
+        "Additional"
+    )
 }

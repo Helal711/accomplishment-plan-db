@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
@@ -78,8 +79,10 @@ fun UpdateTaskScreen(
     isNewTask: Boolean = false,
     availableStatuses: List<String>,
     userAccounts: List<AccountItem> = emptyList(),
+    availableCategories: List<String> = AccountMaster.defaultCategories,
     onSaveTask: (TaskItem) -> Unit,
     onNavigateBack: () -> Unit,
+    onDeleteTask: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -115,6 +118,7 @@ fun UpdateTaskScreen(
         )
     }
     var selectedStatus by remember { mutableStateOf(task.status) }
+    var selectedCategory by remember { mutableStateOf(task.category) }
     var remarks by remember { mutableStateOf(task.remarks) }
 
     // Dropdown open states
@@ -122,7 +126,9 @@ fun UpdateTaskScreen(
     var unitMenuExpanded by remember { mutableStateOf(false) }
     var paymentMenuExpanded by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
+    var categoryMenuExpanded by remember { mutableStateOf(false) }
     var statusMenuExpanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
@@ -130,7 +136,7 @@ fun UpdateTaskScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.White,
         topBar = {
-            // Blue Header: ← Update Task #1 or ← Add New Task
+            // Blue Header: ← Update Task #1 or ← Add New Task with Delete action
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -138,28 +144,44 @@ fun UpdateTaskScreen(
                     .statusBarsPadding()
                     .height(56.dp)
                     .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier.testTag("back_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.testTag("back_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+
+                    Text(
+                        text = if (isNewTask) "Add New Task" else "Update Task #${task.taskNumber}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp
+                        ),
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
 
-                Text(
-                    text = if (isNewTask) "Add New Task" else "Update Task #${task.taskNumber}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 18.sp
-                    ),
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+                if (!isNewTask) {
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier.testTag("delete_task_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Task",
+                            tint = Color.White
+                        )
+                    }
+                }
             }
         },
         bottomBar = {
@@ -194,6 +216,7 @@ fun UpdateTaskScreen(
                                 expectedDate = expectedDate,
                                 accountName = selectedAccountName,
                                 accountCode = finalAccountCode,
+                                category = selectedCategory.trim(),
                                 status = selectedStatus,
                                 remarks = remarks.trim()
                             )
@@ -547,7 +570,58 @@ fun UpdateTaskScreen(
                     .testTag("code_auto_filled_hint")
             )
 
-            // 5. Status Update
+            // 5. Category Selection
+            FormFieldLabel(text = "Category")
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedFieldBox(
+                    onClick = { categoryMenuExpanded = true },
+                    modifier = Modifier.testTag("dropdown_category")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedCategory.ifBlank { "Select Category (Optional)" },
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (selectedCategory.isNotBlank()) Color(0xFF1F2937) else Color(0xFF9CA3AF)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = Color(0xFF6B7280)
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = categoryMenuExpanded,
+                    onDismissRequest = { categoryMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("-- None (Optional) --", fontSize = 13.5.sp) },
+                        onClick = {
+                            selectedCategory = ""
+                            categoryMenuExpanded = false
+                        }
+                    )
+                    availableCategories.forEach { catOption ->
+                        DropdownMenuItem(
+                            text = { Text(catOption, fontSize = 13.5.sp) },
+                            onClick = {
+                                selectedCategory = catOption
+                                categoryMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // 6. Status Update
             FormFieldLabel(text = "Status Update")
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedFieldBox(
@@ -620,6 +694,47 @@ fun UpdateTaskScreen(
                 accountCode = code
             },
             onDismissRequest = { showAccountDialog = false }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(
+                    text = "Delete Task",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete this task? This action cannot be undone.",
+                    fontSize = 14.sp,
+                    color = Color(0xFF374151)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteTask()
+                    }
+                ) {
+                    Text(
+                        text = "Delete",
+                        color = Color(0xFFDC2626),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false }
+                ) {
+                    Text("Cancel", color = Color(0xFF4B5563))
+                }
+            }
         )
     }
 }

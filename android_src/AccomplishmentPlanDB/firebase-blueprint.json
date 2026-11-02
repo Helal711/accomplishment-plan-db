@@ -1,0 +1,194 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "An accomplishment plan task item belonging to a specific workspace owner",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firestore document ID"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Authentication UID of the owner"
+        },
+        "taskNumber": {
+          "type": "integer",
+          "description": "Sequential user-facing task number"
+        },
+        "description": {
+          "type": "string",
+          "description": "Task description or title"
+        },
+        "amount": {
+          "type": "string",
+          "description": "Amount in TK"
+        },
+        "paymentMode": {
+          "type": "string",
+          "enum": ["Cash", "Bank", "Cheque"],
+          "description": "Payment mode"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Factory unit (e.g. Unit-1, Unit-2)"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["High", "Med", "Low"],
+          "description": "Task priority level"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status (Draft Ready, Done, Advance Ready, etc.)"
+        },
+        "expectedDate": {
+          "type": "string",
+          "description": "Expected completion date"
+        },
+        "accountName": {
+          "type": "string",
+          "description": "Associated account name"
+        },
+        "accountCode": {
+          "type": "string",
+          "description": "Account code auto-filled from master list"
+        },
+        "remarks": {
+          "type": "string",
+          "description": "Remarks or notes"
+        },
+        "monthYear": {
+          "type": "string",
+          "description": "Month-year category (e.g. Nov-2026)"
+        },
+        "supp1Uploaded": {
+          "type": "boolean",
+          "description": "Whether supplier 1 quotation is attached"
+        },
+        "supp2Uploaded": {
+          "type": "boolean",
+          "description": "Whether supplier 2 quotation is attached"
+        },
+        "supp3Uploaded": {
+          "type": "boolean",
+          "description": "Whether supplier 3 quotation is attached"
+        },
+        "supp1FileUrl": {
+          "type": "string",
+          "description": "Download URL or storage path for quotation 1"
+        },
+        "supp2FileUrl": {
+          "type": "string",
+          "description": "Download URL or storage path for quotation 2"
+        },
+        "supp3FileUrl": {
+          "type": "string",
+          "description": "Download URL or storage path for quotation 3"
+        },
+        "supp1FileName": {
+          "type": "string",
+          "description": "Filename of supplier 1 quotation"
+        },
+        "supp2FileName": {
+          "type": "string",
+          "description": "Filename of supplier 2 quotation"
+        },
+        "supp3FileName": {
+          "type": "string",
+          "description": "Filename of supplier 3 quotation"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when task was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when task was last updated"
+        }
+      },
+      "required": ["ownerUid", "taskNumber", "description", "amount", "paymentMode", "unit", "priority", "status", "monthYear"]
+    },
+    "AccountItem": {
+      "title": "AccountItem",
+      "description": "Master account item belonging to a specific workspace owner",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firestore document ID"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Authentication UID of the owner"
+        },
+        "accountName": {
+          "type": "string",
+          "description": "Name of the account"
+        },
+        "accountCode": {
+          "type": "string",
+          "description": "Auto-filled code for the account"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["ownerUid", "accountName", "accountCode"]
+    },
+    "StatusItem": {
+      "title": "StatusItem",
+      "description": "Custom status option belonging to a specific workspace owner",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firestore document ID"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Authentication UID of the owner"
+        },
+        "statusName": {
+          "type": "string",
+          "description": "Name of the status"
+        },
+        "isDefault": {
+          "type": "boolean",
+          "description": "Whether status is a default status"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["ownerUid", "statusName"]
+    }
+  },
+  "firestore": {
+    "/Tasks/{taskId}": {
+      "schema": {
+        "$ref": "#/entities/Task"
+      },
+      "description": "Per-user accomplishment plan tasks"
+    },
+    "/Account_List/{accountId}": {
+      "schema": {
+        "$ref": "#/entities/AccountItem"
+      },
+      "description": "Per-user master account directory"
+    },
+    "/Status_List/{statusId}": {
+      "schema": {
+        "$ref": "#/entities/StatusItem"
+      },
+      "description": "Per-user custom status options"
+    }
+  }
+}

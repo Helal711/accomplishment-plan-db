@@ -58,6 +58,7 @@ fun AccomplishmentPlanApp(viewModel: TaskViewModel) {
     val selectedTask by viewModel.selectedTask.collectAsState()
     val availableStatuses by viewModel.availableStatusNames.collectAsState()
     val accounts by viewModel.accounts.collectAsState()
+    val categories by viewModel.availableCategoryNames.collectAsState()
 
     when (currentScreen) {
         ScreenState.TASK_LIST -> {
@@ -69,9 +70,19 @@ fun AccomplishmentPlanApp(viewModel: TaskViewModel) {
                     task = task,
                     isNewTask = false,
                     availableStatuses = availableStatuses,
+                    availableCategories = categories,
                     userAccounts = accounts,
                     onSaveTask = { updated -> viewModel.updateTask(updated) },
-                    onNavigateBack = { viewModel.navigateBackToTaskList() }
+                    onNavigateBack = { viewModel.navigateBackToTaskList() },
+                    onDeleteTask = {
+                        viewModel.deleteTask(task.id) { success, msg ->
+                            if (success) {
+                                Toast.makeText(context, "Task deleted successfully", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, msg ?: "Failed to delete task", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 )
             } ?: TaskListScreen(viewModel = viewModel)
         }
@@ -81,6 +92,7 @@ fun AccomplishmentPlanApp(viewModel: TaskViewModel) {
                     task = task,
                     isNewTask = true,
                     availableStatuses = availableStatuses,
+                    availableCategories = categories,
                     userAccounts = accounts,
                     onSaveTask = { created -> viewModel.addTask(created) },
                     onNavigateBack = { viewModel.navigateBackToTaskList() }

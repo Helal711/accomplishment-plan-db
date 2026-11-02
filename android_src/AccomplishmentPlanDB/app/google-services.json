@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "724771876461",
+    "project_id": "accomplishment-plan-db",
+    "storage_bucket": "accomplishment-plan-db.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:724771876461:android:0bdbc1234001e627645964",
+        "android_client_info": {
+          "package_name": "com.aistudio.accomplishmentplan.dbxhyq"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCb46rloSBnJqmMuDl2p5cNHKLxJdMHXIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:724771876461:android:7dbe1704c1c78206645964",
+        "android_client_info": {
+          "package_name": "com.helal.accomplishmentplandb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCb46rloSBnJqmMuDl2p5cNHKLxJdMHXIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

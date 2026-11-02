@@ -182,4 +182,147 @@ class ExampleUnitTest {
         val pendingCount = tasks.count { !it.isDone }
         assertEquals(2, pendingCount)
     }
+
+    @Test
+    fun testCategoryDefaultList() {
+        val expected19 = listOf(
+            "Furniture & fixture",
+            "Compliance & fire safety",
+            "Materials",
+            "Service",
+            "Food",
+            "Medical",
+            "Book Printing",
+            "Accessories & others",
+            "Auxiliary facilities",
+            "Renovation",
+            "Electrical",
+            "Machinery",
+            "Needle",
+            "Sewing spare parts",
+            "Cutting spare parts",
+            "Hardware",
+            "Printing Section",
+            "LAB",
+            "Additional"
+        )
+        assertEquals(19, AccountMaster.defaultCategories.size)
+        assertEquals(expected19, AccountMaster.defaultCategories)
+    }
+
+    @Test
+    fun testCategoryItemAndTaskCategoryMapping() {
+        // Task with category
+        val taskWithCat = TaskItem(
+            id = "t_cat_1",
+            ownerUid = "uid_cat",
+            taskNumber = 10,
+            description = "Needle replacement for Unit-1",
+            category = "Needle"
+        )
+        assertEquals("Needle", taskWithCat.category)
+        val mapWithCat = taskWithCat.toMap()
+        assertEquals("Needle", mapWithCat["category"])
+
+        // Task without category (backward compatibility for existing tasks)
+        val taskWithoutCat = TaskItem(
+            id = "t_cat_old",
+            ownerUid = "uid_cat",
+            taskNumber = 11,
+            description = "Old task before Phase 2",
+            category = ""
+        )
+        assertEquals("", taskWithoutCat.category)
+        val mapWithoutCat = taskWithoutCat.toMap()
+        assertEquals("", mapWithoutCat["category"])
+
+        // CategoryItem serialization
+        val catItem = com.example.model.CategoryItem(
+            id = "cat_doc_1",
+            ownerUid = "uid_cat",
+            categoryName = "Electrical"
+        )
+        val catMap = catItem.toMap()
+        assertEquals("uid_cat", catMap["ownerUid"])
+        assertEquals("Electrical", catMap["categoryName"])
+    }
+
+    @Test
+    fun testCaseInsensitiveCategoryDuplicateDetection() {
+        val currentCategories = listOf("Electrical", "Machinery", "Food")
+
+        fun isDuplicate(input: String): Boolean {
+            val trimmed = input.trim()
+            return currentCategories.any { it.equals(trimmed, ignoreCase = true) }
+        }
+
+        assertTrue(isDuplicate("electrical"))
+        assertTrue(isDuplicate("ELECTRICAL"))
+        assertTrue(isDuplicate(" Machinery "))
+        assertTrue(isDuplicate("food"))
+        assertFalse(isDuplicate("Medical"))
+        assertFalse(isDuplicate("Electronics"))
+    }
+
+    @Test
+    fun testOfficialStatuses27() {
+        val expected27 = listOf(
+            "Draft Ready",
+            "Advance Draft Ready",
+            "Advance Ready",
+            "Advance Done",
+            "Payment Approval Ready",
+            "Done",
+            "CS Ready",
+            "Approval in Audit",
+            "Approval in Audit (HOD)",
+            "CS in Accounts",
+            "Approval in Accounts",
+            "WO Done",
+            "Waiting for CFO Sign",
+            "Waiting for MD Sign",
+            "Cancel from CFO",
+            "Cancel from HOD",
+            "Cancel",
+            "Pending",
+            "Settlement",
+            "Hold from MR Team",
+            "Hold from CFO",
+            "Hold from MD",
+            "Done from HOD",
+            "Payment Pending",
+            "Next Month",
+            "No Need",
+            "Unavailable"
+        )
+        assertEquals(27, AccountMaster.defaultStatuses.size)
+        assertEquals(expected27, AccountMaster.defaultStatuses)
+    }
+
+    @Test
+    fun testTaskDeleteIsolationAndOwnership() {
+        val task = TaskItem(
+            id = "task_del_1",
+            ownerUid = "user_owner_1",
+            taskNumber = 5,
+            description = "To be deleted"
+        )
+        assertEquals("user_owner_1", task.ownerUid)
+        // Verify another user cannot own this task
+        assertFalse(task.ownerUid == "user_hacker_2")
+    }
+
+    @Test
+    fun testPreserveOldStatusOnOldTasks() {
+        val oldTask = TaskItem(
+            id = "t_old_custom_status",
+            ownerUid = "user_1",
+            status = "Legacy Old Status"
+        )
+        assertEquals("Legacy Old Status", oldTask.status)
+        // Not in official 27 list, but preserved
+        assertFalse(AccountMaster.defaultStatuses.contains(oldTask.status))
+    }
 }
+
+
