@@ -1,5 +1,7 @@
+
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,9 +27,9 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import android.widget.Toast
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -43,7 +44,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.example.model.TaskItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,7 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.filled.Folder
+import com.example.model.TaskItem
 import com.example.ui.components.CategoryManagerDialog
 import com.example.ui.components.ExportDialog
 import com.example.ui.components.MonthSelectorDialog
@@ -75,6 +75,7 @@ fun TaskListScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
     val tasks by viewModel.filteredTasks.collectAsState(initial = emptyList())
     val selectedMonth by viewModel.selectedMonth.collectAsState()
     val availableMonths by viewModel.availableMonths.collectAsState()
@@ -96,6 +97,7 @@ fun TaskListScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.White,
+
         topBar = {
             Column(
                 modifier = Modifier
@@ -103,7 +105,7 @@ fun TaskListScreen(
                     .background(AppPrimaryBlue)
                     .statusBarsPadding()
             ) {
-                // Header Bar matching reference wireframe exactly
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -112,7 +114,8 @@ fun TaskListScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Gear Icon with settings & user menu
+
+                    // Settings Menu
                     Box {
                         IconButton(
                             onClick = { showSettingsMenu = true },
@@ -130,8 +133,11 @@ fun TaskListScreen(
 
                         DropdownMenu(
                             expanded = showSettingsMenu,
-                            onDismissRequest = { showSettingsMenu = false }
+                            onDismissRequest = {
+                                showSettingsMenu = false
+                            }
                         ) {
+
                             currentUser?.let { user ->
                                 DropdownMenuItem(
                                     text = {
@@ -141,6 +147,7 @@ fun TaskListScreen(
                                                 fontSize = 11.sp,
                                                 color = Color(0xFF6B7280)
                                             )
+
                                             Text(
                                                 text = user.email ?: user.uid.take(12),
                                                 fontSize = 13.sp,
@@ -151,13 +158,23 @@ fun TaskListScreen(
                                     },
                                     onClick = {}
                                 )
+
                                 Divider()
                             }
 
                             DropdownMenuItem(
-                                text = { Text("Category Management", fontSize = 13.5.sp) },
+                                text = {
+                                    Text(
+                                        "Category Management",
+                                        fontSize = 13.5.sp
+                                    )
+                                },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(
+                                        Icons.Default.Folder,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 },
                                 onClick = {
                                     showSettingsMenu = false
@@ -166,9 +183,18 @@ fun TaskListScreen(
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Dynamic Status Settings", fontSize = 13.5.sp) },
+                                text = {
+                                    Text(
+                                        "Dynamic Status Settings",
+                                        fontSize = 13.5.sp
+                                    )
+                                },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(
+                                        Icons.Default.Settings,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 },
                                 onClick = {
                                     showSettingsMenu = false
@@ -177,9 +203,20 @@ fun TaskListScreen(
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Sign Out", fontSize = 13.5.sp, color = Color(0xFFDC2626)) },
+                                text = {
+                                    Text(
+                                        "Sign Out",
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                },
                                 leadingIcon = {
-                                    Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
+                                    Icon(
+                                        Icons.Default.ExitToApp,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 },
                                 onClick = {
                                     showSettingsMenu = false
@@ -189,10 +226,12 @@ fun TaskListScreen(
                         }
                     }
 
-                    // Center Month Selector: 📅 Nov-2026 ▾
+                    // Month Selector
                     Row(
                         modifier = Modifier
-                            .clickable { showMonthDialog = true }
+                            .clickable {
+                                showMonthDialog = true
+                            }
                             .padding(horizontal = 8.dp, vertical = 6.dp)
                             .testTag("month_selector_button"),
                         verticalAlignment = Alignment.CenterVertically
@@ -203,7 +242,9 @@ fun TaskListScreen(
                             tint = Color.White,
                             modifier = Modifier.size(17.dp)
                         )
+
                         Spacer(modifier = Modifier.width(6.dp))
+
                         Text(
                             text = selectedMonth,
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -212,6 +253,7 @@ fun TaskListScreen(
                                 fontSize = 16.sp
                             )
                         )
+
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
                             contentDescription = "Select Month",
@@ -220,10 +262,14 @@ fun TaskListScreen(
                         )
                     }
 
-                    // Right Actions: Export (⤓) and Search (🔍)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Export and Search
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         IconButton(
-                            onClick = { showExportDialog = true },
+                            onClick = {
+                                showExportDialog = true
+                            },
                             modifier = Modifier
                                 .size(40.dp)
                                 .testTag("export_button")
@@ -237,7 +283,9 @@ fun TaskListScreen(
                         }
 
                         IconButton(
-                            onClick = { viewModel.toggleSearch() },
+                            onClick = {
+                                viewModel.toggleSearch()
+                            },
                             modifier = Modifier
                                 .size(40.dp)
                                 .testTag("search_toggle_button")
@@ -252,7 +300,7 @@ fun TaskListScreen(
                     }
                 }
 
-                // Optional Search Bar
+                // Search Bar
                 if (isSearchOpen) {
                     Surface(
                         color = Color.White,
@@ -260,13 +308,27 @@ fun TaskListScreen(
                     ) {
                         OutlinedTextField(
                             value = searchQuery,
-                            onValueChange = { viewModel.setSearchQuery(it) },
-                            placeholder = { Text("Search by description, unit, status...", fontSize = 13.sp) },
+                            onValueChange = {
+                                viewModel.setSearchQuery(it)
+                            },
+                            placeholder = {
+                                Text(
+                                    "Search by description, unit, status...",
+                                    fontSize = 13.sp
+                                )
+                            },
                             singleLine = true,
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.setSearchQuery("")
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            contentDescription = "Clear"
+                                        )
                                     }
                                 }
                             },
@@ -276,13 +338,16 @@ fun TaskListScreen(
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .padding(
+                                    horizontal = 12.dp,
+                                    vertical = 6.dp
+                                )
                                 .testTag("search_input_field")
                         )
                     }
                 }
 
-                // Subheader Count Bar: Total Items: 17 | Pending: 12
+                // Total and Pending Count
                 Surface(
                     color = Color(0xFFF9FAFB),
                     modifier = Modifier.fillMaxWidth()
@@ -291,7 +356,10 @@ fun TaskListScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -301,6 +369,7 @@ fun TaskListScreen(
                                     color = Color(0xFF374151)
                                 )
                             )
+
                             Text(
                                 text = "$totalCount",
                                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -309,6 +378,7 @@ fun TaskListScreen(
                                     color = Color(0xFF111827)
                                 )
                             )
+
                             Text(
                                 text = "  |  Pending: ",
                                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -316,6 +386,7 @@ fun TaskListScreen(
                                     color = Color(0xFF374151)
                                 )
                             )
+
                             Text(
                                 text = "$pendingCount",
                                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -325,14 +396,22 @@ fun TaskListScreen(
                                 )
                             )
                         }
-                        Divider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+
+                        Divider(
+                            color = Color(0xFFE5E7EB),
+                            thickness = 1.dp
+                        )
                     }
                 }
             }
         },
+
+        // Add Task Button
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { viewModel.openNewTask() },
+                onClick = {
+                    viewModel.openNewTask()
+                },
                 containerColor = AppPrimaryBlue,
                 contentColor = Color.White,
                 shape = CircleShape,
@@ -347,8 +426,9 @@ fun TaskListScreen(
                 )
             }
         },
+
+        // Footer
         bottomBar = {
-            // Footer matching reference wireframe
             Surface(
                 color = Color.White,
                 modifier = Modifier
@@ -369,12 +449,15 @@ fun TaskListScreen(
                 )
             }
         }
+
     ) { innerPadding ->
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+
             if (tasks.isEmpty()) {
                 Column(
                     modifier = Modifier
@@ -385,26 +468,52 @@ fun TaskListScreen(
                 ) {
                     Text(
                         text = "No tasks found for $selectedMonth",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFF6B7280))
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = Color(0xFF6B7280)
+                        )
                     )
                 }
             } else {
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 80.dp),
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 8.dp,
+                        bottom = 80.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(tasks, key = { it.id.ifBlank { it.taskNumber.toString() } }) { task ->
+                    items(
+                        tasks,
+                        key = {
+                            it.id.ifBlank {
+                                it.taskNumber.toString()
+                            }
+                        }
+                    ) { task ->
+
                         TaskCard(
                             task = task,
                             availableStatuses = availableStatuses,
-                            onCardClick = { viewModel.openUpdateTask(task) },
+
+                            onCardClick = {
+                                viewModel.openUpdateTask(task)
+                            },
+
                             onStatusChange = { newStatus ->
                                 if (task.id.isNotBlank()) {
-                                    viewModel.quickUpdateStatus(task.id, newStatus)
+                                    viewModel.quickUpdateStatus(
+                                        task.id,
+                                        newStatus
+                                    )
                                 }
                             },
-                            onDeleteClick = { taskToDelete = task }
+
+                            onDeleteClick = {
+                                taskToDelete = task
+                            }
                         )
                     }
                 }
@@ -412,46 +521,81 @@ fun TaskListScreen(
         }
     }
 
+    // Month Selector Dialog
     if (showMonthDialog) {
         MonthSelectorDialog(
             selectedMonth = selectedMonth,
             availableMonths = availableMonths,
-            onMonthSelected = { viewModel.setSelectedMonth(it) },
-            onAddNewMonth = { viewModel.addMonth(it) },
-            onDismissRequest = { showMonthDialog = false }
+            onMonthSelected = {
+                viewModel.setSelectedMonth(it)
+            },
+            onAddNewMonth = {
+                viewModel.addMonth(it)
+            },
+            onDismissRequest = {
+                showMonthDialog = false
+            }
         )
     }
 
+    // Export Dialog
     if (showExportDialog) {
         ExportDialog(
             currentMonth = selectedMonth,
             tasks = tasks,
-            onDismissRequest = { showExportDialog = false }
+            onDismissRequest = {
+                showExportDialog = false
+            }
         )
     }
 
+    // Status Management Dialog
     if (showStatusDialog) {
         StatusManagerDialog(
             availableStatuses = availableStatuses,
-            onAddStatus = { viewModel.addCustomStatus(it) },
-            onRemoveStatus = { viewModel.removeCustomStatus(it) },
-            onDismissRequest = { showStatusDialog = false }
+            onAddStatus = {
+                viewModel.addCustomStatus(it)
+            },
+            onRemoveStatus = {
+                viewModel.removeCustomStatus(it)
+            },
+            onDismissRequest = {
+                showStatusDialog = false
+            }
         )
     }
 
+    // Category Management Dialog
     if (showCategoryDialog) {
         CategoryManagerDialog(
             categories = categories,
-            onAddCategory = { name, cb -> viewModel.addCategory(name, cb) },
-            onUpdateCategory = { id, name, cb -> viewModel.updateCategory(id, name, cb) },
-            onDeleteCategory = { id, cb -> viewModel.deleteCategory(id, cb) },
-            onDismissRequest = { showCategoryDialog = false }
+
+            onAddCategory = { name ->
+                viewModel.addCategory(name)
+            },
+
+            onEditCategory = { id, name ->
+                viewModel.updateCategory(id, name)
+            },
+
+            onDeleteCategory = { id ->
+                viewModel.deleteCategory(id)
+            },
+
+            onDismissRequest = {
+                showCategoryDialog = false
+            }
         )
     }
 
+    // Delete Task Confirmation
     taskToDelete?.let { task ->
+
         AlertDialog(
-            onDismissRequest = { taskToDelete = null },
+            onDismissRequest = {
+                taskToDelete = null
+            },
+
             title = {
                 Text(
                     text = "Delete Task",
@@ -459,6 +603,7 @@ fun TaskListScreen(
                     fontSize = 17.sp
                 )
             },
+
             text = {
                 Text(
                     text = "Are you sure you want to delete this task? This action cannot be undone.",
@@ -466,17 +611,28 @@ fun TaskListScreen(
                     color = Color(0xFF374151)
                 )
             },
+
             confirmButton = {
                 TextButton(
                     onClick = {
                         val taskId = task.id
                         taskToDelete = null
+
                         if (taskId.isNotBlank()) {
                             viewModel.deleteTask(taskId) { success, msg ->
+
                                 if (success) {
-                                    Toast.makeText(context, "Task deleted successfully", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Task deleted successfully",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 } else {
-                                    Toast.makeText(context, msg ?: "Failed to delete task", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        msg ?: "Failed to delete task",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
                         }
@@ -489,11 +645,17 @@ fun TaskListScreen(
                     )
                 }
             },
+
             dismissButton = {
                 TextButton(
-                    onClick = { taskToDelete = null }
+                    onClick = {
+                        taskToDelete = null
+                    }
                 ) {
-                    Text("Cancel", color = Color(0xFF4B5563))
+                    Text(
+                        "Cancel",
+                        color = Color(0xFF4B5563)
+                    )
                 }
             }
         )
