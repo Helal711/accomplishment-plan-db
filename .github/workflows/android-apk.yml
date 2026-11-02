@@ -1,3 +1,4 @@
+
 name: Build Android APK
 
 on:
@@ -23,6 +24,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools,platforms;android-36,build-tools;36.0.0'
+          accept-android-sdk-licenses: true
 
       - name: Grant Gradle Permission
         working-directory: android_src/AccomplishmentPlanDB
