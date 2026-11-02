@@ -31,6 +31,7 @@ data class TaskItem(
     val expectedDate: String = "17 Nov 2026",
     val accountName: String = "Civil Maintenance",
     val accountCode: String = "ACC-CM101",
+    val category: String = "",
     val remarks: String = "",
     val monthYear: String = "Nov-2026",
     @ServerTimestamp val createdAt: Timestamp? = null,
@@ -58,6 +59,7 @@ data class TaskItem(
             "expectedDate" to expectedDate,
             "accountName" to accountName,
             "accountCode" to accountCode,
+            "category" to category,
             "remarks" to remarks,
             "monthYear" to monthYear
         )
@@ -94,3 +96,18 @@ data class StatusItem(
         "isDefault" to isDefault
     )
 }
+
+@IgnoreExtraProperties
+data class CategoryItem(
+    @DocumentId val id: String = "",
+    val ownerUid: String = "",
+    val categoryName: String = "",
+    @ServerTimestamp val createdAt: Timestamp? = null,
+    @ServerTimestamp val updatedAt: Timestamp? = null
+) {
+    fun toMap(): Map<String, Any> = mapOf(
+        "ownerUid" to ownerUid,
+        "categoryName" to categoryName
+    )
+}
+

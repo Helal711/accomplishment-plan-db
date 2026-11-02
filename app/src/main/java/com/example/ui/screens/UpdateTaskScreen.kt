@@ -53,6 +53,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Divider
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.lazy.LazyColumn
+import com.example.model.AccountItem
 import com.example.model.AccountMaster
 import com.example.model.Priority
 import com.example.model.TaskItem
@@ -69,6 +77,8 @@ fun UpdateTaskScreen(
     task: TaskItem,
     isNewTask: Boolean = false,
     availableStatuses: List<String>,
+    userAccounts: List<AccountItem> = emptyList(),
+    availableCategories: List<String> = AccountMaster.defaultCategories,
     onSaveTask: (TaskItem) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -80,14 +90,29 @@ fun UpdateTaskScreen(
         onNavigateBack()
     }
 
+    val officialAccounts = remember { AccountMaster.accounts }
+
     var description by remember { mutableStateOf(task.description) }
     var amount by remember { mutableStateOf(task.amount) }
     var selectedPriority by remember { mutableStateOf(Priority.fromLabel(task.priority)) }
     var selectedUnit by remember { mutableStateOf(task.unit) }
     var selectedPayment by remember { mutableStateOf(task.paymentMode) }
     var expectedDate by remember { mutableStateOf(task.expectedDate) }
-    var selectedAccountName by remember { mutableStateOf(task.accountName) }
-    var accountCode by remember { mutableStateOf(task.accountCode.ifBlank { AccountMaster.getCodeForAccount(task.accountName) }) }
+    var selectedAccountName by remember { mutableStateOf(task.accountName.ifBlank { officialAccounts.first().first }) }
+    var accountCode by remember {
+        mutableStateOf(
+            task.accountCode.ifBlank {
+                AccountMaster.getCodeForAccount(selectedAccountName)
+            }
+        )
+    }
+    var selectedCategory by remember {
+        mutableStateOf(
+            task.category.ifBlank {
+                availableCategories.firstOrNull() ?: "Materials"
+            }
+        )
+    }
     var selectedStatus by remember { mutableStateOf(task.status) }
     var remarks by remember { mutableStateOf(task.remarks) }
 
@@ -95,7 +120,8 @@ fun UpdateTaskScreen(
     var priorityMenuExpanded by remember { mutableStateOf(false) }
     var unitMenuExpanded by remember { mutableStateOf(false) }
     var paymentMenuExpanded by remember { mutableStateOf(false) }
-    var accountMenuExpanded by remember { mutableStateOf(false) }
+    var showAccountDialog by remember { mutableStateOf(false) }
+    var categoryMenuExpanded by remember { mutableStateOf(false) }
     var statusMenuExpanded by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
@@ -157,6 +183,8 @@ fun UpdateTaskScreen(
                                 Toast.makeText(context, "Please enter a description", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
+                            val validatedCode = AccountMaster.getCodeForAccount(selectedAccountName)
+                            val finalAccountCode = validatedCode
                             val updated = task.copy(
                                 description = description.trim(),
                                 amount = amount.trim(),
@@ -165,7 +193,8 @@ fun UpdateTaskScreen(
                                 paymentMode = selectedPayment,
                                 expectedDate = expectedDate,
                                 accountName = selectedAccountName,
-                                accountCode = accountCode,
+                                accountCode = finalAccountCode,
+                                category = selectedCategory,
                                 status = selectedStatus,
                                 remarks = remarks.trim()
                             )
@@ -478,52 +507,29 @@ fun UpdateTaskScreen(
                 // Account Info
                 Column(modifier = Modifier.weight(1f)) {
                     FormFieldLabel(text = "Account Info")
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedFieldBox(
-                            onClick = { accountMenuExpanded = true },
-                            modifier = Modifier.testTag("dropdown_account")
+                    OutlinedFieldBox(
+                        onClick = { showAccountDialog = true },
+                        modifier = Modifier.testTag("dropdown_account")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 10.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = selectedAccountName.ifBlank { "Account Name" },
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    color = Color(0xFF1F2937),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    tint = Color(0xFF6B7280)
-                                )
-                            }
-                        }
-
-                        DropdownMenu(
-                            expanded = accountMenuExpanded,
-                            onDismissRequest = { accountMenuExpanded = false }
-                        ) {
-                            AccountMaster.accounts.forEach { (name, code) ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(name, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
-                                            Text("Code: $code", fontSize = 11.5.sp, color = Color(0xFF6B7280))
-                                        }
-                                    },
-                                    onClick = {
-                                        selectedAccountName = name
-                                        accountCode = code
-                                        accountMenuExpanded = false
-                                    }
-                                )
-                            }
+                            Text(
+                                text = selectedAccountName.ifBlank { "Account Name" },
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                color = Color(0xFF1F2937),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = Color(0xFF6B7280)
+                            )
                         }
                     }
                 }
@@ -542,7 +548,64 @@ fun UpdateTaskScreen(
                     .testTag("code_auto_filled_hint")
             )
 
-            // 5. Status Update
+            // 5. Category Selection
+            FormFieldLabel(text = "Category")
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedFieldBox(
+                    onClick = { categoryMenuExpanded = true },
+                    modifier = Modifier.testTag("dropdown_category")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedCategory.ifBlank { "Select Category" },
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1F2937)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select Category",
+                            tint = Color(0xFF6B7280)
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = categoryMenuExpanded,
+                    onDismissRequest = { categoryMenuExpanded = false }
+                ) {
+                    val allCategories = remember(availableCategories, selectedCategory) {
+                        if (selectedCategory.isNotBlank() && !availableCategories.contains(selectedCategory)) {
+                            listOf(selectedCategory) + availableCategories
+                        } else {
+                            availableCategories
+                        }
+                    }
+                    allCategories.forEach { categoryOption ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = categoryOption,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (categoryOption == selectedCategory) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                selectedCategory = categoryOption
+                                categoryMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // 6. Status Update
             FormFieldLabel(text = "Status Update")
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedFieldBox(
@@ -604,6 +667,172 @@ fun UpdateTaskScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+
+    if (showAccountDialog) {
+        AccountSelectionDialog(
+            selectedAccountName = selectedAccountName,
+            accounts = officialAccounts,
+            onAccountSelected = { name, code ->
+                selectedAccountName = name
+                accountCode = code
+            },
+            onDismissRequest = { showAccountDialog = false }
+        )
+    }
+}
+
+@Composable
+fun AccountSelectionDialog(
+    selectedAccountName: String,
+    accounts: List<Pair<String, String>>,
+    onAccountSelected: (name: String, code: String) -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredAccounts = remember(searchQuery, accounts) {
+        if (searchQuery.isBlank()) {
+            accounts
+        } else {
+            val q = searchQuery.trim().lowercase()
+            accounts.filter { (name, code) ->
+                name.lowercase().contains(q) || code.lowercase().contains(q)
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        shape = RoundedCornerShape(12.dp),
+        containerColor = Color.White,
+        title = {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Select Account",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                    )
+                    Text(
+                        text = "${filteredAccounts.size} accounts",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = Color(0xFF6B7280)
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search account or code...", fontSize = 13.sp) },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF6B7280),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear",
+                                    tint = Color(0xFF6B7280),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppPrimaryBlue,
+                        unfocusedBorderColor = Color(0xFFD1D5DB)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("account_search_field")
+                )
+            }
+        },
+        text = {
+            if (filteredAccounts.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No accounts matching \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF6B7280))
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    items(filteredAccounts.size) { index ->
+                        val (name, code) = filteredAccounts[index]
+                        val isSelected = name.equals(selectedAccountName, ignoreCase = true)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onAccountSelected(name, code)
+                                    onDismissRequest()
+                                }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = 13.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) AppPrimaryBlue else Color(0xFF1F2937)
+                                    )
+                                )
+                                Text(
+                                    text = "Code: $code",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 11.5.sp,
+                                        color = Color(0xFF6B7280)
+                                    )
+                                )
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = AppPrimaryBlue,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        if (index < filteredAccounts.size - 1) {
+                            Divider(color = Color(0xFFF3F4F6))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Close", color = AppPrimaryBlue)
+            }
+        }
+    )
 }
 
 @Composable
@@ -649,3 +878,4 @@ private fun defaultTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = Color(0xFF111827),
     unfocusedTextColor = Color(0xFF111827)
 )
+

@@ -57,6 +57,8 @@ fun AccomplishmentPlanApp(viewModel: TaskViewModel) {
     val currentScreen by viewModel.currentScreen.collectAsState()
     val selectedTask by viewModel.selectedTask.collectAsState()
     val availableStatuses by viewModel.availableStatusNames.collectAsState()
+    val accounts by viewModel.accounts.collectAsState()
+    val availableCategories by viewModel.availableCategoryNames.collectAsState()
 
     when (currentScreen) {
         ScreenState.TASK_LIST -> {
@@ -68,6 +70,8 @@ fun AccomplishmentPlanApp(viewModel: TaskViewModel) {
                     task = task,
                     isNewTask = false,
                     availableStatuses = availableStatuses,
+                    userAccounts = accounts,
+                    availableCategories = availableCategories,
                     onSaveTask = { updated -> viewModel.updateTask(updated) },
                     onNavigateBack = { viewModel.navigateBackToTaskList() }
                 )
@@ -79,6 +83,8 @@ fun AccomplishmentPlanApp(viewModel: TaskViewModel) {
                     task = task,
                     isNewTask = true,
                     availableStatuses = availableStatuses,
+                    userAccounts = accounts,
+                    availableCategories = availableCategories,
                     onSaveTask = { created -> viewModel.addTask(created) },
                     onNavigateBack = { viewModel.navigateBackToTaskList() }
                 )

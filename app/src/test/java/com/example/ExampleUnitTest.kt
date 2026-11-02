@@ -102,14 +102,47 @@ class ExampleUnitTest {
 
     @Test
     fun testAccountMasterCodeLookup() {
-        assertEquals("ACC-CM101", AccountMaster.getCodeForAccount("Civil Maintenance"))
-        assertEquals("ACC-AC205", AccountMaster.getCodeForAccount("Air Conditioning"))
-        assertEquals("ACC-CS309", AccountMaster.getCodeForAccount("Commercial Seal"))
-        assertEquals("ACC-EL412", AccountMaster.getCodeForAccount("Electrical Spares"))
-        assertEquals("ACC-FL508", AccountMaster.getCodeForAccount("Factory Logistics"))
-        assertEquals("ACC-SS602", AccountMaster.getCodeForAccount("Safety & Security"))
-        assertEquals("ACC-MS714", AccountMaster.getCodeForAccount("Machinery Supplies"))
-        assertEquals("ACC-AC820", AccountMaster.getCodeForAccount("Admin & Canteen"))
+        // Required verification items:
+        assertEquals("4521001", AccountMaster.getCodeForAccount("M_Salaries wages(Basic salary)"))
+        assertEquals("6111001", AccountMaster.getCodeForAccount("S_Salaries wages(Basic salary)"))
+        assertEquals("1200951", AccountMaster.getCodeForAccount("Machinery"))
+        assertEquals("1201521", AccountMaster.getCodeForAccount("Software"))
+
+        // Verify total predefined accounts count
+        assertEquals(154, AccountMaster.accounts.size)
+
+        // Verify dual account names sharing code 4532404
+        assertEquals("4532404", AccountMaster.getCodeForAccount("M_Outsourcing processing expenses (Other general)"))
+        assertEquals("4532404", AccountMaster.getCodeForAccount("M_Outsourcing processing expenses(Other-General)"))
+    }
+
+    @Test
+    fun testAccountCodeAutomaticLookupAndTaskEdit() {
+        // Immediate update on account selection change
+        var selectedAccount = "M_Salaries wages(Basic salary)"
+        var code = AccountMaster.getCodeForAccount(selectedAccount)
+        assertEquals("4521001", code)
+
+        // Change selection -> immediately updates code
+        selectedAccount = "Software"
+        code = AccountMaster.getCodeForAccount(selectedAccount)
+        assertEquals("1201521", code)
+
+        // Editing a task restores saved account name and code
+        val existingTask = TaskItem(
+            id = "t_101",
+            ownerUid = "uid_1",
+            description = "Custom development",
+            accountName = "Machinery",
+            accountCode = "1200951"
+        )
+        assertEquals("Machinery", existingTask.accountName)
+        assertEquals("1200951", existingTask.accountCode)
+
+        // Custom account remains available and takes precedence
+        val customAccounts = listOf("Custom Safety Rig" to "ACC-SAFE999")
+        val customLookup = AccountMaster.getCodeForAccount("Custom Safety Rig", customAccounts)
+        assertEquals("ACC-SAFE999", customLookup)
     }
 
     @Test
@@ -148,5 +181,82 @@ class ExampleUnitTest {
         // Calculate pending count
         val pendingCount = tasks.count { !it.isDone }
         assertEquals(2, pendingCount)
+    }
+
+    @Test
+    fun testDefaultCategoriesCountAndValues() {
+        assertEquals(19, AccountMaster.defaultCategories.size)
+        val expected19 = listOf(
+            "Furniture & fixture",
+            "Compliance & fire safety",
+            "Materials",
+            "Service",
+            "Food",
+            "Medical",
+            "Book Printing",
+            "Accessories & others",
+            "Auxiliary facilities",
+            "Renovation",
+            "Electrical",
+            "Machinery",
+            "Needle",
+            "Sewing spare parts",
+            "Cutting spare parts",
+            "Hardware",
+            "Printing Section",
+            "LAB",
+            "Additional"
+        )
+        assertEquals(expected19, AccountMaster.defaultCategories)
+    }
+
+    @Test
+    fun testCategoryItemSerializationAndOwnerUid() {
+        val cat = com.example.model.CategoryItem(
+            id = "cat_1",
+            ownerUid = "user_test_uid",
+            categoryName = "Materials"
+        )
+        assertEquals("user_test_uid", cat.ownerUid)
+        assertEquals("Materials", cat.categoryName)
+        val map = cat.toMap()
+        assertEquals("user_test_uid", map["ownerUid"])
+        assertEquals("Materials", map["categoryName"])
+    }
+
+    @Test
+    fun testTaskItemCategoryFieldAndBackwardCompatibility() {
+        // Old task without category
+        val oldTask = TaskItem(
+            id = "old_task",
+            description = "Legacy task"
+        )
+        assertEquals("", oldTask.category)
+        val oldMap = oldTask.toMap()
+        assertEquals("", oldMap["category"])
+
+        // New task with category
+        val newTask = TaskItem(
+            id = "new_task",
+            description = "New categorized task",
+            category = "Materials"
+        )
+        assertEquals("Materials", newTask.category)
+        val newMap = newTask.toMap()
+        assertEquals("Materials", newMap["category"])
+    }
+
+    @Test
+    fun testCategoryDuplicatePreventionCaseInsensitive() {
+        val categories = listOf("Materials", "Service", "Hardware")
+        val isDuplicateUpper = categories.any { it.equals("MATERIALS", ignoreCase = true) }
+        val isDuplicateLower = categories.any { it.equals("materials", ignoreCase = true) }
+        val isDuplicateWhitespace = categories.any { it.trim().equals("  service  ".trim(), ignoreCase = true) }
+        val isNew = categories.any { it.equals("Food", ignoreCase = true) }
+
+        assertTrue(isDuplicateUpper)
+        assertTrue(isDuplicateLower)
+        assertTrue(isDuplicateWhitespace)
+        assertFalse(isNew)
     }
 }

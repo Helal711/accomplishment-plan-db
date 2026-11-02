@@ -3,6 +3,7 @@ package com.example.data
 import android.util.Log
 import com.example.model.AccountItem
 import com.example.model.AccountMaster
+import com.example.model.CategoryItem
 import com.example.model.Priority
 import com.example.model.StatusItem
 import com.example.model.TaskItem
@@ -101,6 +102,23 @@ class TaskRepository(
             }
     }
 
+    // Observe user categories
+    fun observeCategories(): Flow<List<CategoryItem>> {
+        val uid = currentUserId() ?: return flowOf(emptyList())
+        return db.collection("Category_List")
+            .whereEqualTo("ownerUid", uid)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
+                }.sortedBy { it.categoryName.lowercase() }
+            }
+            .catch { e ->
+                Log.e(tag, "Error observing categories: ${e.message}", e)
+                emit(emptyList())
+            }
+    }
+
     suspend fun addTask(task: TaskItem): Result<String> {
         return try {
             val uid = requireUserId()
@@ -152,15 +170,44 @@ class TaskRepository(
     suspend fun addAccount(name: String, code: String): Result<String> {
         return try {
             val uid = requireUserId()
+            val isOfficial = AccountMaster.accounts.any {
+                it.first.trim().equals(name.trim(), ignoreCase = true) &&
+                it.second.trim() == code.trim()
+            }
+            if (!isOfficial) {
+                return Result.failure(IllegalArgumentException("Only accounts from the official master list can be added."))
+            }
             val docRef = db.collection("Account_List").add(
                 mapOf(
                     "ownerUid" to uid,
-                    "accountName" to name,
-                    "accountCode" to code,
+                    "accountName" to name.trim(),
+                    "accountCode" to code.trim(),
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             ).await()
             Result.success(docRef.id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateAccount(accountId: String, name: String, code: String): Result<Unit> {
+        return try {
+            val isOfficial = AccountMaster.accounts.any {
+                it.first.trim().equals(name.trim(), ignoreCase = true) &&
+                it.second.trim() == code.trim()
+            }
+            if (!isOfficial) {
+                return Result.failure(IllegalArgumentException("Only accounts from the official master list can be saved."))
+            }
+            db.collection("Account_List").document(accountId).update(
+                mapOf(
+                    "accountName" to name.trim(),
+                    "accountCode" to code.trim(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -192,32 +239,148 @@ class TaskRepository(
         }
     }
 
+    suspend fun addCategory(categoryName: String): Result<String> {
+        return try {
+            val uid = requireUserId()
+            val docRef = db.collection("Category_List").add(
+                mapOf(
+                    "ownerUid" to uid,
+                    "categoryName" to categoryName.trim(),
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(docRef.id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateCategory(categoryId: String, newName: String): Result<Unit> {
+        return try {
+            val uid = requireUserId()
+            db.collection("Category_List").document(categoryId).update(
+                mapOf(
+                    "categoryName" to newName.trim(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteCategory(categoryId: String): Result<Unit> {
+        return try {
+            db.collection("Category_List").document(categoryId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    data class AccountSyncSummary(
+        val totalOfficial: Int,
+        val retainedCount: Int,
+        val addedCount: Int,
+        val removedCount: Int
+    )
+
+    suspend fun cleanAndSyncOfficialAccounts(uid: String): AccountSyncSummary {
+        val existingAccountsSnap = db.collection("Account_List")
+            .whereEqualTo("ownerUid", uid)
+            .get()
+            .await()
+
+        // 1. Safe backup representation
+        val backupDocs = existingAccountsSnap.documents.map {
+            mapOf(
+                "id" to it.id,
+                "accountName" to (it.getString("accountName") ?: ""),
+                "accountCode" to (it.getString("accountCode") ?: ""),
+                "ownerUid" to (it.getString("ownerUid") ?: uid)
+            )
+        }
+        Log.i(tag, "Account_List backup for $uid: total ${backupDocs.size} existing records backed up")
+
+        // Exact match set: (accountName.trim(), accountCode.trim())
+        val officialCombos = AccountMaster.accounts.map { (name, code) ->
+            name.trim() to code.trim()
+        }.toSet()
+
+        val seenOfficial = mutableSetOf<Pair<String, String>>()
+        var retainedCount = 0
+        var removedCount = 0
+
+        // 2. Remove all previous accounts not in the official list, and deduplicate
+        for (doc in existingAccountsSnap.documents) {
+            val name = doc.getString("accountName")?.trim() ?: ""
+            val code = doc.getString("accountCode")?.trim() ?: ""
+            val combo = name to code
+
+            if (officialCombos.contains(combo)) {
+                if (seenOfficial.contains(combo)) {
+                    // Duplicate record of official account -> remove duplicate
+                    db.collection("Account_List").document(doc.id).delete().await()
+                    removedCount++
+                } else {
+                    seenOfficial.add(combo)
+                    retainedCount++
+                }
+            } else {
+                // Not in official list -> delete old / unlisted account
+                db.collection("Account_List").document(doc.id).delete().await()
+                removedCount++
+            }
+        }
+
+        // 3. Add any missing official accounts
+        var addedCount = 0
+        for ((name, code) in AccountMaster.accounts) {
+            val combo = name.trim() to code.trim()
+            if (!seenOfficial.contains(combo)) {
+                db.collection("Account_List").add(
+                    mapOf(
+                        "ownerUid" to uid,
+                        "accountName" to name,
+                        "accountCode" to code,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+                addedCount++
+            }
+        }
+
+        Log.i(tag, "Account cleanup & sync for $uid: Retained=$retainedCount, Added=$addedCount, Removed=$removedCount, Total=${AccountMaster.accounts.size}")
+        return AccountSyncSummary(
+            totalOfficial = AccountMaster.accounts.size,
+            retainedCount = retainedCount,
+            addedCount = addedCount,
+            removedCount = removedCount
+        )
+    }
+
     // Initialize fresh workspace with default accounts & statuses, and seed template tasks if desired
     suspend fun initializeUserWorkspace(seedSampleTasks: Boolean = true) {
         val uid = requireUserId()
         try {
-            // Check if user already has data
-            val existingAccounts = db.collection("Account_List")
+            // Clean, replace and synchronize official accounts
+            val syncSummary = cleanAndSyncOfficialAccounts(uid)
+
+            // Fetch existing statuses
+            val existingStatusesSnap = db.collection("Status_List")
                 .whereEqualTo("ownerUid", uid)
-                .limit(1)
                 .get()
                 .await()
 
-            if (existingAccounts.isEmpty) {
-                // Seed default master accounts
-                AccountMaster.accounts.forEach { (name, code) ->
-                    db.collection("Account_List").add(
-                        mapOf(
-                            "ownerUid" to uid,
-                            "accountName" to name,
-                            "accountCode" to code,
-                            "createdAt" to FieldValue.serverTimestamp()
-                        )
-                    ).await()
-                }
+            val existingStatusNames = existingStatusesSnap.documents.mapNotNull {
+                it.getString("statusName")?.lowercase()?.trim()
+            }.toSet()
 
-                // Seed default statuses
-                AccountMaster.defaultStatuses.forEach { statusName ->
+            // Seed missing default statuses
+            AccountMaster.defaultStatuses.forEach { statusName ->
+                if (!existingStatusNames.contains(statusName.lowercase().trim())) {
                     db.collection("Status_List").add(
                         mapOf(
                             "ownerUid" to uid,
@@ -227,10 +390,34 @@ class TaskRepository(
                         )
                     ).await()
                 }
+            }
 
-                if (seedSampleTasks) {
-                    seedTemplateTasks(uid)
+            // Fetch existing categories
+            val existingCategoriesSnap = db.collection("Category_List")
+                .whereEqualTo("ownerUid", uid)
+                .get()
+                .await()
+
+            val existingCategoryNames = existingCategoriesSnap.documents.mapNotNull {
+                it.getString("categoryName")?.lowercase()?.trim()
+            }.toSet()
+
+            // Seed missing default categories
+            AccountMaster.defaultCategories.forEach { catName ->
+                if (!existingCategoryNames.contains(catName.lowercase().trim())) {
+                    db.collection("Category_List").add(
+                        mapOf(
+                            "ownerUid" to uid,
+                            "categoryName" to catName,
+                            "createdAt" to FieldValue.serverTimestamp(),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    ).await()
                 }
+            }
+
+            if (existingAccountsSnap.isEmpty && seedSampleTasks) {
+                seedTemplateTasks(uid)
             }
         } catch (e: Exception) {
             Log.e(tag, "Error initializing user workspace: ${e.message}", e)

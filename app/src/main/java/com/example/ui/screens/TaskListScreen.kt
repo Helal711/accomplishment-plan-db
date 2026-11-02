@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.FileDownload
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.CategoryManagerDialog
 import com.example.ui.components.ExportDialog
 import com.example.ui.components.MonthSelectorDialog
 import com.example.ui.components.StatusManagerDialog
@@ -78,10 +80,12 @@ fun TaskListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isSearchOpen by viewModel.isSearchOpen.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
     var showMonthDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showStatusDialog by remember { mutableStateOf(false) }
+    var showCategoryDialog by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -153,6 +157,17 @@ fun TaskListScreen(
                                 onClick = {
                                     showSettingsMenu = false
                                     showStatusDialog = true
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Category Management", fontSize = 13.5.sp) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp))
+                                },
+                                onClick = {
+                                    showSettingsMenu = false
+                                    showCategoryDialog = true
                                 }
                             )
 
@@ -415,6 +430,16 @@ fun TaskListScreen(
             onAddStatus = { viewModel.addCustomStatus(it) },
             onRemoveStatus = { viewModel.removeCustomStatus(it) },
             onDismissRequest = { showStatusDialog = false }
+        )
+    }
+
+    if (showCategoryDialog) {
+        CategoryManagerDialog(
+            categories = categories,
+            onAddCategory = { name, cb -> viewModel.addCategory(name, cb) },
+            onEditCategory = { id, name, cb -> viewModel.updateCategory(id, name, cb) },
+            onDeleteCategory = { id, cb -> viewModel.deleteCategory(id, cb) },
+            onDismissRequest = { showCategoryDialog = false }
         )
     }
 }
