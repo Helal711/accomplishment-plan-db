@@ -4,24 +4,33 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - 'android_src/AccomplishmentPlanDB/**'
       - '.github/workflows/android-apk.yml'
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build Accomplishment Plan DB APK
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout source code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Step 2: Setup Java
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      # Step 3: Setup Android SDK
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -31,17 +40,21 @@ jobs:
             build-tools;36.0.0
           accept-android-sdk-licenses: true
 
+      # Step 4: Setup Gradle Wrapper permission
       - name: Grant Gradle Permission
         working-directory: android_src/AccomplishmentPlanDB
         run: chmod +x gradlew
 
+      # Step 5: Build Debug APK
       - name: Build Debug APK
         working-directory: android_src/AccomplishmentPlanDB
-        run: ./gradlew assembleDebug
+        run: ./gradlew --no-daemon assembleDebug
 
+      # Step 6: Upload APK Artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Accomplishment-Plan-DB-Debug-APK
           path: android_src/AccomplishmentPlanDB/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 14
