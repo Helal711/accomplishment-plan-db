@@ -1,0 +1,49 @@
+name: Deploy Web App to GitHub Pages
+
+on:
+  push:
+    branches: ["main"] # আপনার ব্রাঞ্চের নাম master হলে এখানে master লিখবেন
+  workflow_dispatch: # ম্যানুয়াল ডেপ্লয়মেন্টের জন্য
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci # lockfile ব্যবহার করে নির্ভুল ইনস্টলেশনের জন্য
+
+      - name: Build Web App
+        run: npm run build
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Build Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist' # Vite-এর প্রোডাকশন বিল্ড ফোল্ডার
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
