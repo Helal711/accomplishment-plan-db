@@ -55,6 +55,10 @@
           "type": "string",
           "description": "Account code auto-filled from master list"
         },
+        "category": {
+          "type": "string",
+          "description": "Category taxonomy classification"
+        },
         "remarks": {
           "type": "string",
           "description": "Remarks or notes"
@@ -62,42 +66,6 @@
         "monthYear": {
           "type": "string",
           "description": "Month-year category (e.g. Nov-2026)"
-        },
-        "supp1Uploaded": {
-          "type": "boolean",
-          "description": "Whether supplier 1 quotation is attached"
-        },
-        "supp2Uploaded": {
-          "type": "boolean",
-          "description": "Whether supplier 2 quotation is attached"
-        },
-        "supp3Uploaded": {
-          "type": "boolean",
-          "description": "Whether supplier 3 quotation is attached"
-        },
-        "supp1FileUrl": {
-          "type": "string",
-          "description": "Download URL or storage path for quotation 1"
-        },
-        "supp2FileUrl": {
-          "type": "string",
-          "description": "Download URL or storage path for quotation 2"
-        },
-        "supp3FileUrl": {
-          "type": "string",
-          "description": "Download URL or storage path for quotation 3"
-        },
-        "supp1FileName": {
-          "type": "string",
-          "description": "Filename of supplier 1 quotation"
-        },
-        "supp2FileName": {
-          "type": "string",
-          "description": "Filename of supplier 2 quotation"
-        },
-        "supp3FileName": {
-          "type": "string",
-          "description": "Filename of supplier 3 quotation"
         },
         "createdAt": {
           "type": "string",
@@ -169,6 +137,36 @@
         }
       },
       "required": ["ownerUid", "statusName"]
+    },
+    "CategoryItem": {
+      "title": "CategoryItem",
+      "description": "Custom category taxonomy belonging to a specific workspace owner",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firestore document ID"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Authentication UID of the owner"
+        },
+        "categoryName": {
+          "type": "string",
+          "description": "Name of the category"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Update timestamp"
+        }
+      },
+      "required": ["ownerUid", "categoryName"]
     }
   },
   "firestore": {
@@ -189,6 +187,12 @@
         "$ref": "#/entities/StatusItem"
       },
       "description": "Per-user custom status options"
+    },
+    "/Category_List/{categoryId}": {
+      "schema": {
+        "$ref": "#/entities/CategoryItem"
+      },
+      "description": "Per-user custom categories"
     }
   }
 }

@@ -167,8 +167,8 @@ class TaskViewModel(
             priority = "High",
             status = "Draft Ready",
             expectedDate = "17 Nov 2026",
-            accountName = "Civil Maintenance",
-            accountCode = AccountMaster.getCodeForAccount("Civil Maintenance"),
+            accountName = "M_Supply expenses(Other)",
+            accountCode = AccountMaster.getCodeForAccount("M_Supply expenses(Other)"),
             remarks = "",
             category = "",
             monthYear = _selectedMonth.value

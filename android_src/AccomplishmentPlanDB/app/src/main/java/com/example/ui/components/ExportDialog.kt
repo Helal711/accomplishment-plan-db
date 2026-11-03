@@ -171,8 +171,8 @@ private fun shareExportSummary(context: Context, format: String, month: String, 
     builder.appendLine("Accomplishment Plan DB - Export ($format)")
     builder.appendLine("Month: $month | Total Items: ${tasks.size}")
     builder.appendLine("--------------------------------------------")
-    tasks.forEach { task ->
-        builder.appendLine("#${task.taskNumber}. ${task.description}")
+    tasks.forEachIndexed { index, task ->
+        builder.appendLine("#${index + 1}. ${task.description}")
         builder.appendLine("Amount: ${task.formattedAmount} | ${task.paymentMode} | ${task.unit}")
         builder.appendLine("Priority: ${task.priority} | Status: ${task.status}")
         builder.appendLine("Account: ${task.accountName} (${task.accountCode})")

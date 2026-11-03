@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sliders, Plus, Trash2, X, Tag, Download, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Sliders, Plus, Trash2, X, Tag } from 'lucide-react';
 import { StatusItem, DEFAULT_STATUSES } from '../types';
 
 interface StatusManagerModalProps {
@@ -7,7 +7,6 @@ interface StatusManagerModalProps {
   statuses: StatusItem[];
   onAddStatus: (statusName: string) => Promise<void>;
   onRemoveStatus: (statusId: string) => Promise<void>;
-  onSyncOfficialStatuses?: () => Promise<any>;
   onClose: () => void;
 }
 
@@ -16,13 +15,11 @@ export const StatusManagerModal: React.FC<StatusManagerModalProps> = ({
   statuses,
   onAddStatus,
   onRemoveStatus,
-  onSyncOfficialStatuses,
   onClose,
 }) => {
   const [newStatus, setNewStatus] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -31,20 +28,6 @@ export const StatusManagerModal: React.FC<StatusManagerModalProps> = ({
     ...DEFAULT_STATUSES,
     ...statuses.filter((s) => !DEFAULT_STATUSES.map(d => d.toLowerCase()).includes(s.statusName.toLowerCase())).map((s) => s.statusName),
   ];
-
-  const handleSyncWithBackup = async () => {
-    if (!onSyncOfficialStatuses) return;
-    try {
-      setIsSubmitting(true);
-      setError('');
-      const res = await onSyncOfficialStatuses();
-      setSyncStatusMsg(`Synchronized ${res.totalOfficial} official statuses (${res.unlistedStatusesRemovedCount} unlisted removed, ${res.newStatusesAddedCount} added). Downloaded backup.`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to sync statuses');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,36 +67,15 @@ export const StatusManagerModal: React.FC<StatusManagerModalProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center justify-between my-2">
-          <p className="text-xs text-gray-500">
-            27 Official Statuses & Custom items.
-          </p>
-          {onSyncOfficialStatuses && (
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={handleSyncWithBackup}
-              className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-app-primary bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
-              title="Download backup and synchronize with official 27 statuses"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Backup & Sync ({DEFAULT_STATUSES.length})</span>
-            </button>
-          )}
-        </div>
-
-        {syncStatusMsg && (
-          <div className="mb-2 p-2 bg-green-50 border border-green-200 text-green-800 rounded-lg text-xs flex items-center space-x-1.5">
-            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-            <span>{syncStatusMsg}</span>
-          </div>
-        )}
+        <p className="text-xs text-gray-500 my-3">
+          Manage task statuses. Default statuses are protected; custom statuses can be added or deleted.
+        </p>
 
         {/* Status list */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 my-2">
           {/* Default Statuses */}
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">
-            Official Statuses ({DEFAULT_STATUSES.length})
+            Standard Statuses
           </div>
           <div className="grid grid-cols-2 gap-2">
             {DEFAULT_STATUSES.map((name) => (

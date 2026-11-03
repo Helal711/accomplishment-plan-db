@@ -4,6 +4,7 @@ import { TaskItem, Priority } from '../types';
 
 interface TaskCardProps {
   task: TaskItem;
+  serialNumber?: number;
   availableStatuses: string[];
   onCardClick: () => void;
   onStatusChange: (newStatus: string) => void;
@@ -12,6 +13,7 @@ interface TaskCardProps {
 
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
+  serialNumber,
   availableStatuses,
   onCardClick,
   onStatusChange,
@@ -46,7 +48,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       {/* Row 1: Task Title & Priority Badge */}
       <div className="flex items-center justify-between gap-2">
         <h4 className="text-[14.5px] font-bold text-gray-900 truncate flex-1 leading-snug">
-          {task.taskNumber}. {task.description}
+          {serialNumber !== undefined ? serialNumber : task.taskNumber}. {task.description}
         </h4>
 
         <div className="flex items-center space-x-2 flex-shrink-0">
@@ -193,30 +195,21 @@ export const PriorityBadge: React.FC<{ priority: Priority | string }> = ({ prior
 };
 
 export function getStatusColor(status: string) {
-  const s = (status || '').toLowerCase().trim();
-  if (s === 'done' || s === 'done from hod' || s === 'advance done' || s === 'wo done') {
+  const s = (status || '').toLowerCase();
+  if (s === 'done') {
     return { bg: '#E8F5E9', text: '#2E7D32', border: '#A5D6A7' };
   }
-  if (s.includes('advance') || s.includes('payment approval') || s.includes('cs ready')) {
+  if (s === 'advance ready') {
     return { bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' };
   }
-  if (s.includes('draft')) {
+  if (s === 'draft ready') {
     return { bg: '#FEF9C3', text: '#854D0E', border: '#FDE047' };
   }
-  if (s.includes('approval') || s.includes('in accounts') || s.includes('waiting')) {
-    return { bg: '#F3E8FF', text: '#6B21A8', border: '#D8B4FE' };
+  if (s === 'in progress') {
+    return { bg: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' };
   }
-  if (s.includes('cancel') || s === 'no need' || s === 'unavailable') {
+  if (s === 'cancelled') {
     return { bg: '#FEE2E2', text: '#B91C1C', border: '#FCA5A5' };
-  }
-  if (s.includes('hold')) {
-    return { bg: '#FFEDD5', text: '#C2410C', border: '#FDBA74' };
-  }
-  if (s === 'settlement' || s === 'next month') {
-    return { bg: '#E0F2FE', text: '#0369A1', border: '#BAE6FD' };
-  }
-  if (s === 'pending' || s === 'payment pending') {
-    return { bg: '#FFF7ED', text: '#EA580C', border: '#FED7AA' };
   }
   return { bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB' };
 }

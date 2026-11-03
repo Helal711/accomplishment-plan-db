@@ -17,8 +17,6 @@ import {
   addCategory,
   updateCategory,
   deleteCategory,
-  syncOfficialAccountList,
-  syncOfficialStatusList,
 } from '../firebase/db';
 import { TaskItem, AccountItem, StatusItem, CategoryItem, DEFAULT_STATUSES, DEFAULT_MONTHS } from '../types';
 import { AppHeader } from '../components/AppHeader';
@@ -51,8 +49,6 @@ export const DashboardPage: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
-  const [isDeletingTask, setIsDeletingTask] = useState<boolean>(false);
-  const [deleteFeedback, setDeleteFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Subscribe to tasks for current user and month
   useEffect(() => {
@@ -128,6 +124,16 @@ export const DashboardPage: React.FC = () => {
   const totalCount = tasks.length;
   const pendingCount = tasks.filter((t) => (t.status || '').toLowerCase() !== 'done').length;
 
+  // Dynamically compute counts for all available statuses in the selected month
+  const statusCounts = useMemo(() => {
+    return availableStatusNames.map((st) => {
+      const count = tasks.filter(
+        (t) => (t.status || '').toLowerCase().trim() === st.toLowerCase().trim()
+      ).length;
+      return { name: st, count };
+    });
+  }, [availableStatusNames, tasks]);
+
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     try {
       await quickUpdateTaskStatus(taskId, newStatus);
@@ -137,26 +143,12 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!taskToDelete || isDeletingTask) return;
+    if (!taskToDelete) return;
     try {
-      setIsDeletingTask(true);
-      await deleteTask(taskToDelete.id, currentUser?.uid);
-      const deletedNumber = taskToDelete.taskNumber;
+      await deleteTask(taskToDelete.id);
       setTaskToDelete(null);
-      setDeleteFeedback({
-        type: 'success',
-        message: `Task #${deletedNumber} deleted successfully.`,
-      });
-      setTimeout(() => setDeleteFeedback(null), 4000);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to delete task:', err);
-      setDeleteFeedback({
-        type: 'error',
-        message: err.message || 'Failed to delete task.',
-      });
-      setTimeout(() => setDeleteFeedback(null), 4000);
-    } finally {
-      setIsDeletingTask(false);
     }
   };
 
@@ -175,6 +167,7 @@ export const DashboardPage: React.FC = () => {
           selectedMonth={selectedMonth}
           totalCount={totalCount}
           pendingCount={pendingCount}
+          statusCounts={statusCounts}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenMonthSelector={() => setShowMonthModal(true)}
@@ -184,19 +177,8 @@ export const DashboardPage: React.FC = () => {
           onOpenCategoryManager={() => setShowCategoryModal(true)}
         />
 
-        {/* Content Container */}
-        <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 pb-24">
-          {deleteFeedback && (
-            <div
-              className={`mb-3 p-3 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all ${
-                deleteFeedback.type === 'success'
-                  ? 'bg-green-50 text-green-800 border border-green-200'
-                  : 'bg-red-50 text-red-800 border border-red-200'
-              }`}
-            >
-              <span>{deleteFeedback.message}</span>
-            </div>
-          )}
+        {/* Content Container with bottom padding for fixed footer & FAB */}
+        <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 pb-28">
           {loadingTasks ? (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-3 border-app-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -228,10 +210,11 @@ export const DashboardPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-2.5">
-              {filteredTasks.map((task) => (
+              {filteredTasks.map((task, index) => (
                 <TaskCard
-                  key={task.id || task.taskNumber}
+                  key={task.id || `${task.taskNumber}-${index}`}
                   task={task}
+                  serialNumber={index + 1}
                   availableStatuses={availableStatusNames}
                   onCardClick={() => navigate(`/tasks/${task.id}`, { state: { task } })}
                   onStatusChange={(newStatus) => handleStatusChange(task.id, newStatus)}
@@ -243,8 +226,8 @@ export const DashboardPage: React.FC = () => {
         </main>
       </div>
 
-      {/* Floating Add Task Button (FAB) matching Android */}
-      <div className="fixed right-5 bottom-12 z-30">
+      {/* Floating Add Task Button (FAB) matching Android, raised above fixed footer */}
+      <div className="fixed right-5 bottom-14 z-30">
         <button
           type="button"
           onClick={() => navigate('/tasks/new', { state: { month: selectedMonth } })}
@@ -255,7 +238,7 @@ export const DashboardPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Footer */}
+      {/* Permanently fixed Footer */}
       <DeveloperFooter />
 
       {/* Modals */}
@@ -277,21 +260,20 @@ export const DashboardPage: React.FC = () => {
         onRemoveStatus={async (id) => {
           await deleteStatus(id);
         }}
-        onSyncOfficialStatuses={async () => {
-          if (currentUser) {
-            return await syncOfficialStatusList(currentUser.uid, true);
-          }
-        }}
         onClose={() => setShowStatusModal(false)}
       />
 
       <AccountManagerModal
         isOpen={showAccountModal}
         accounts={accounts}
-        onSyncOfficialList={async () => {
-          if (currentUser) {
-            return await syncOfficialAccountList(currentUser.uid);
-          }
+        onAddAccount={async (name, code) => {
+          if (currentUser) await addAccount(currentUser.uid, name, code);
+        }}
+        onUpdateAccount={async (id, name, code) => {
+          await updateAccount(id, { accountName: name, accountCode: code });
+        }}
+        onDeleteAccount={async (id) => {
+          await deleteAccount(id);
         }}
         onClose={() => setShowAccountModal(false)}
       />
@@ -321,8 +303,8 @@ export const DashboardPage: React.FC = () => {
       <ConfirmDeleteModal
         isOpen={!!taskToDelete}
         title="Delete Task"
-        message="Are you sure you want to delete this task? This action cannot be undone."
-        confirmText="Delete"
+        message={`Are you sure you want to delete Task #${taskToDelete?.taskNumber}: "${taskToDelete?.description}"? This action cannot be undone.`}
+        confirmText="Delete Task"
         onConfirm={handleConfirmDelete}
         onCancel={() => setTaskToDelete(null)}
       />

@@ -36,8 +36,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       'Month/Year',
     ];
 
-    const rows = tasks.map((t) => [
-      t.taskNumber,
+    const rows = tasks.map((t, idx) => [
+      idx + 1,
       `"${(t.description || '').replace(/"/g, '""')}"`,
       `"${t.amount || ''}"`,
       `"${t.paymentMode || ''}"`,
@@ -70,8 +70,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     let text = `Accomplishment Plan DB - Export (Summary)\n`;
     text += `Month: ${currentMonth} | Total Items: ${tasks.length}\n`;
     text += `--------------------------------------------\n`;
-    tasks.forEach((task) => {
-      text += `#${task.taskNumber}. ${task.description}\n`;
+    tasks.forEach((task, idx) => {
+      text += `#${idx + 1}. ${task.description}\n`;
       text += `Amount: ${task.amount} TK | ${task.paymentMode} | ${task.unit}\n`;
       text += `Priority: ${task.priority} | Status: ${task.status}\n`;
       text += `Account: ${task.accountName} (${task.accountCode})\n`;
@@ -102,8 +102,217 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     onClose();
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportPDF = () => {
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    if (!printWindow) {
+      alert('Please allow popups to generate the PDF report.');
+      return;
+    }
+
+    const escapeHtml = (str: string) => {
+      return (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    const rowsHtml = tasks
+      .map(
+        (task, idx) => `
+        <tr>
+          <td style="text-align: center; font-weight: 600;">${idx + 1}</td>
+          <td><strong>${escapeHtml(task.description)}</strong></td>
+          <td style="white-space: nowrap;">${escapeHtml(
+            task.amount
+              ? task.amount.toLowerCase().endsWith('tk')
+                ? task.amount
+                : `${task.amount} TK`
+              : '-'
+          )}</td>
+          <td style="white-space: nowrap;">${escapeHtml(task.paymentMode || '-')}</td>
+          <td style="white-space: nowrap;">${escapeHtml(task.unit || '-')}</td>
+          <td>
+            <span class="priority-${escapeHtml(task.priority)}">
+              ${escapeHtml(task.priority || '-')}
+            </span>
+          </td>
+          <td>
+            <span class="status-badge">
+              ${escapeHtml(task.status || '-')}
+            </span>
+          </td>
+          <td style="white-space: nowrap;">${escapeHtml(task.expectedDate || '-')}</td>
+          <td>
+            <div>${escapeHtml(task.accountName || '-')}</div>
+            <div style="font-size: 8pt; color: #6B7280;">${escapeHtml(task.accountCode || '')}</div>
+          </td>
+          <td style="font-size: 8.5pt; color: #4B5563;">${escapeHtml(task.remarks || '-')}</td>
+        </tr>
+      `
+      )
+      .join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Accomplishment Plan Report - ${escapeHtml(currentMonth)}</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 12mm 10mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      color: #111827;
+      background: #FFFFFF;
+      font-size: 10pt;
+    }
+    .report-header {
+      border-bottom: 2px solid #1E88E5;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .report-title h1 {
+      margin: 0 0 4px 0;
+      font-size: 17pt;
+      color: #1E88E5;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .report-title p {
+      margin: 0;
+      font-size: 9.5pt;
+      color: #6B7280;
+    }
+    .report-meta {
+      text-align: right;
+      font-size: 9pt;
+      color: #374151;
+      line-height: 1.4;
+    }
+    .report-meta strong {
+      color: #111827;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 9pt;
+    }
+    th {
+      background-color: #F1F5F9;
+      color: #1E293B;
+      font-weight: 700;
+      text-align: left;
+      padding: 7px 6px;
+      border: 1px solid #CBD5E1;
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    td {
+      padding: 6px;
+      border: 1px solid #E2E8F0;
+      vertical-align: top;
+      line-height: 1.35;
+    }
+    tr:nth-child(even) td {
+      background-color: #F8FAFC;
+    }
+    .priority-High { color: #DC2626; font-weight: 700; }
+    .priority-Med { color: #D97706; font-weight: 700; }
+    .priority-Low { color: #16A34A; font-weight: 700; }
+    .status-badge {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: #EFF6FF;
+      color: #1E40AF;
+      font-weight: 600;
+      font-size: 8pt;
+    }
+    .report-footer {
+      border-top: 1px solid #E2E8F0;
+      padding-top: 8px;
+      margin-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5pt;
+      color: #6B7280;
+    }
+    @media print {
+      body { padding: 0; }
+      tr { page-break-inside: avoid; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <div class="report-title">
+      <h1>Accomplishment Plan Report</h1>
+      <p>Master Task Accomplishments & Operational Expenses</p>
+    </div>
+    <div class="report-meta">
+      <div>Month/Year: <strong>${escapeHtml(currentMonth)}</strong></div>
+      <div>Total Tasks: <strong>${tasks.length}</strong></div>
+      <div>Printed: <strong>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 28px; text-align: center;">#</th>
+        <th>Description</th>
+        <th style="width: 80px;">Amount</th>
+        <th style="width: 60px;">Payment</th>
+        <th style="width: 55px;">Unit</th>
+        <th style="width: 50px;">Priority</th>
+        <th style="width: 75px;">Status</th>
+        <th style="width: 85px;">Expected Date</th>
+        <th style="width: 140px;">Account (Code)</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml || '<tr><td colspan="10" style="text-align:center; padding: 20px;">No tasks recorded for this month.</td></tr>'}
+    </tbody>
+  </table>
+
+  <div class="report-footer">
+    <span>Accomplishment Plan DB &bull; Confidential Internal Report</span>
+    <span>Developer by Md Al Helal Sarkar</span>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.focus();
+        window.print();
+      }, 250);
+    };
+  <\/script>
+</body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    onClose();
   };
 
   return (
@@ -159,18 +368,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
           </button>
 
-          {/* Print / Save PDF */}
+          {/* Dedicated PDF Document */}
           <button
             type="button"
-            onClick={handlePrint}
+            onClick={handleExportPDF}
             className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50/40 text-left transition-all group"
           >
             <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-105 transition-transform">
               <Printer className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-gray-900">Print or Save as PDF</div>
-              <div className="text-xs text-gray-500">Opens browser print dialog to print or save as PDF</div>
+              <div className="text-sm font-semibold text-gray-900">PDF Report Document (Print/PDF)</div>
+              <div className="text-xs text-gray-500">Generates clean report table without dialog/popup UI</div>
             </div>
           </button>
         </div>

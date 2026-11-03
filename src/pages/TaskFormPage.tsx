@@ -33,7 +33,6 @@ import {
   DEFAULT_UNITS,
   DEFAULT_PAYMENTS,
   DEFAULT_STATUSES,
-  OFFICIAL_ACCOUNTS,
   DEFAULT_ACCOUNTS,
   DEFAULT_CATEGORIES,
   getCodeForAccount,
@@ -61,10 +60,10 @@ export const TaskFormPage: React.FC = () => {
   const [paymentMode, setPaymentMode] = useState(initialTask?.paymentMode || 'Cash');
   const [expectedDate, setExpectedDate] = useState(initialTask?.expectedDate || '17 Nov 2026');
   const [accountName, setAccountName] = useState(
-    initialTask?.accountName || OFFICIAL_ACCOUNTS[0].accountName
+    initialTask?.accountName || 'M_Supply expenses(Other)'
   );
   const [accountCode, setAccountCode] = useState(
-    initialTask?.accountCode || OFFICIAL_ACCOUNTS[0].accountCode
+    initialTask?.accountCode || '4532154'
   );
   const [status, setStatus] = useState(initialTask?.status || 'Draft Ready');
   const [category, setCategory] = useState(initialTask?.category || 'Materials');
@@ -95,31 +94,35 @@ export const TaskFormPage: React.FC = () => {
     };
   }, [currentUser]);
 
-  // Combine accounts - official list is the sole master list
+  // Combine accounts
   const combinedAccounts = useMemo(() => {
-    return OFFICIAL_ACCOUNTS;
-  }, []);
+    const customNames = new Set(accounts.map((a) => a.accountName.toLowerCase().trim()));
+    const remainingPredefined = DEFAULT_ACCOUNTS.filter(
+      (a) => !customNames.has(a.accountName.toLowerCase().trim())
+    ).map((a, i) => ({
+      id: `predef_${i}`,
+      ownerUid: '',
+      accountName: a.accountName,
+      accountCode: a.accountCode,
+    }));
+    return [...accounts, ...remainingPredefined];
+  }, [accounts]);
 
   // Filtered accounts for modal search
   const filteredAccounts = useMemo(() => {
-    if (!accountSearchQuery.trim()) return OFFICIAL_ACCOUNTS;
+    if (!accountSearchQuery.trim()) return combinedAccounts;
     const q = accountSearchQuery.toLowerCase().trim();
-    return OFFICIAL_ACCOUNTS.filter(
+    return combinedAccounts.filter(
       (a) =>
         a.accountName.toLowerCase().includes(q) ||
         a.accountCode.toLowerCase().includes(q)
     );
-  }, [accountSearchQuery]);
+  }, [combinedAccounts, accountSearchQuery]);
 
-  // Combine statuses (preserving old task's status even if not in official list)
-  const combinedStatusNames = useMemo(() => {
-    const custom = statuses.map((s) => s.statusName);
-    const set = new Set([...DEFAULT_STATUSES, ...custom]);
-    if (status && !set.has(status)) {
-      set.add(status);
-    }
-    return Array.from(set);
-  }, [statuses, status]);
+  // Combine statuses
+  const combinedStatusNames = Array.from(
+    new Set([...DEFAULT_STATUSES, ...statuses.map((s) => s.statusName)])
+  );
 
   // Combine categories
   const combinedCategoryNames = useMemo(() => {
@@ -150,6 +153,16 @@ export const TaskFormPage: React.FC = () => {
       const cleanedAmount = amount.trim();
       const validatedCode = getCodeForAccount(accountName, accounts);
       const finalAccountCode = accountCode.trim() || validatedCode;
+
+      // Validate account exists in user's account master list
+      const accountExists = combinedAccounts.some(
+        (a) => a.accountName.toLowerCase().trim() === accountName.toLowerCase().trim()
+      );
+      if (!accountExists && combinedAccounts.length > 0) {
+        setError(`Selected account "${accountName}" does not exist in your Account List. Please select a valid account.`);
+        setSaving(false);
+        return;
+      }
 
       if (isNew) {
         await addTask({
@@ -197,10 +210,10 @@ export const TaskFormPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!taskId || isNew || !currentUser) return;
+    if (!taskId || isNew) return;
     try {
       setSaving(true);
-      await deleteTask(taskId, currentUser.uid);
+      await deleteTask(taskId);
       setShowDeleteModal(false);
       navigate('/');
     } catch (err: any) {
@@ -291,7 +304,7 @@ export const TaskFormPage: React.FC = () => {
                     type="text"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="e.g. 13,000"
+                    placeholder="00,000"
                     className="w-full pl-3.5 pr-12 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent font-medium"
                   />
                   <span className="absolute right-3.5 top-2.5 text-xs font-bold text-gray-400">
@@ -400,68 +413,34 @@ export const TaskFormPage: React.FC = () => {
             {/* 5. Account Name & Account Code (2-col grid) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
-                    Account Name <span className="text-red-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAccountModal(true)}
-                    className="text-xs text-app-primary hover:text-app-dark-blue font-semibold flex items-center space-x-1"
-                  >
-                    <Search className="w-3.5 h-3.5" />
-                    <span>Search ({OFFICIAL_ACCOUNTS.length})</span>
-                  </button>
-                </div>
-                <div className="relative">
-                  <BookOpen className="w-4 h-4 text-gray-400 absolute left-3.5 top-3 pointer-events-none" />
-                  <select
-                    value={accountName}
-                    onChange={(e) => {
-                      const selectedVal = e.target.value;
-                      setAccountName(selectedVal);
-                      const matched = OFFICIAL_ACCOUNTS.find((a) => a.accountName === selectedVal);
-                      if (matched) {
-                        setAccountCode(matched.accountCode);
-                      }
-                    }}
-                    required
-                    className="w-full pl-10 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent bg-white font-medium text-gray-900"
-                  >
-                    {initialTask?.accountName &&
-                      !OFFICIAL_ACCOUNTS.some((a) => a.accountName === initialTask.accountName) && (
-                        <option value={initialTask.accountName}>
-                          {initialTask.accountName} (Existing Saved Account)
-                        </option>
-                      )}
-                    {OFFICIAL_ACCOUNTS.map((acc) => (
-                      <option
-                        key={`${acc.accountName}__${acc.accountCode}`}
-                        value={acc.accountName}
-                      >
-                        {acc.accountName} ({acc.accountCode})
-                      </option>
-                    ))}
-                  </select>
+                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1.5">
+                  Account Name
+                </label>
+                <div
+                  onClick={() => setShowAccountModal(true)}
+                  className="relative flex items-center justify-between w-full pl-10 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-lg cursor-pointer bg-white hover:border-app-primary transition-colors"
+                >
+                  <BookOpen className="w-4 h-4 text-gray-400 absolute left-3.5 pointer-events-none" />
+                  <span className="truncate font-medium text-gray-900">
+                    {accountName || 'Select Account'}
+                  </span>
+                  <span className="text-xs text-app-primary font-semibold ml-2 flex-shrink-0">
+                    Browse
+                  </span>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1.5">
-                  Account Code (Auto-filled)
+                  Account Code
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={accountCode}
-                    readOnly
-                    placeholder="e.g. 4521001"
-                    className="w-full px-3.5 py-2.5 text-sm font-mono border border-gray-300 rounded-lg bg-gray-50 text-gray-800 font-semibold focus:outline-none"
-                  />
-                  <span className="absolute right-3.5 top-2.5 text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200">
-                    Official
-                  </span>
-                </div>
+                <input
+                  type="text"
+                  value={accountCode}
+                  onChange={(e) => setAccountCode(e.target.value)}
+                  placeholder="e.g. ACC-CM101"
+                  className="w-full px-3.5 py-2.5 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent bg-gray-50"
+                />
               </div>
             </div>
 
@@ -477,7 +456,6 @@ export const TaskFormPage: React.FC = () => {
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full pl-10 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent bg-white font-medium text-gray-900"
                 >
-                  <option value="">-- Select Category (Optional) --</option>
                   {combinedCategoryNames.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -547,8 +525,8 @@ export const TaskFormPage: React.FC = () => {
       <ConfirmDeleteModal
         isOpen={showDeleteModal}
         title="Delete Task"
-        message="Are you sure you want to delete this task? This action cannot be undone."
-        confirmText="Delete"
+        message={`Are you sure you want to delete Task #${taskNumber}: "${description}"? This action cannot be reversed.`}
+        confirmText="Confirm Delete"
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteModal(false)}
       />
@@ -602,11 +580,10 @@ export const TaskFormPage: React.FC = () => {
               ) : (
                 filteredAccounts.map((acc) => {
                   const isSelected =
-                    acc.accountName.toLowerCase().trim() === accountName.toLowerCase().trim() &&
-                    acc.accountCode.trim() === accountCode.trim();
+                    acc.accountName.toLowerCase().trim() === accountName.toLowerCase().trim();
                   return (
                     <button
-                      key={`${acc.accountName}__${acc.accountCode}`}
+                      key={acc.id || acc.accountName}
                       type="button"
                       onClick={() => {
                         setAccountName(acc.accountName);

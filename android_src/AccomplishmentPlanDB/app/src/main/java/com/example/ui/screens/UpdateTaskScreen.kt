@@ -106,16 +106,33 @@ fun UpdateTaskScreen(
     var selectedUnit by remember { mutableStateOf(task.unit) }
     var selectedPayment by remember { mutableStateOf(task.paymentMode) }
     var expectedDate by remember { mutableStateOf(task.expectedDate) }
-    var selectedAccountName by remember { mutableStateOf(task.accountName.ifBlank { combinedAccounts.firstOrNull()?.first ?: "M_Salaries wages(Basic salary)" }) }
+    val defaultTargetAccount = "M_Supply expenses(Other)"
+    val defaultTargetCode = "4532154"
+    var selectedAccountName by remember {
+        val initialName = if (isNewTask) {
+            if (combinedAccounts.any { it.first.equals(defaultTargetAccount, ignoreCase = true) }) {
+                defaultTargetAccount
+            } else {
+                combinedAccounts.firstOrNull()?.first ?: defaultTargetAccount
+            }
+        } else {
+            task.accountName.ifBlank { defaultTargetAccount }
+        }
+        mutableStateOf(initialName)
+    }
     var accountCode by remember {
-        mutableStateOf(
+        val initialCode = if (isNewTask) {
+            val code = AccountMaster.getCodeForAccount(selectedAccountName, combinedAccounts)
+            if (code.isNotBlank()) code else defaultTargetCode
+        } else {
             task.accountCode.ifBlank {
                 AccountMaster.getCodeForAccount(
                     selectedAccountName,
                     combinedAccounts
                 )
             }
-        )
+        }
+        mutableStateOf(initialCode)
     }
     var selectedStatus by remember { mutableStateOf(task.status) }
     var selectedCategory by remember { mutableStateOf(task.category) }
@@ -203,6 +220,11 @@ fun UpdateTaskScreen(
                         onClick = {
                             if (description.isBlank()) {
                                 Toast.makeText(context, "Please enter a description", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val accountExists = combinedAccounts.any { it.first.equals(selectedAccountName, ignoreCase = true) }
+                            if (!accountExists && combinedAccounts.isNotEmpty()) {
+                                Toast.makeText(context, "Selected account \"$selectedAccountName\" does not exist in Account List. Please choose a valid account.", Toast.LENGTH_LONG).show()
                                 return@Button
                             }
                             val validatedCode = AccountMaster.getCodeForAccount(selectedAccountName, combinedAccounts)
@@ -295,7 +317,7 @@ fun UpdateTaskScreen(
                     OutlinedTextField(
                         value = amount,
                         onValueChange = { amount = it },
-                        placeholder = { Text("13,000", fontSize = 13.5.sp, color = Color(0xFF9CA3AF)) },
+                        placeholder = { Text("00,000", fontSize = 13.5.sp, color = Color(0xFF9CA3AF)) },
                         singleLine = true,
                         colors = defaultTextFieldColors(),
                         shape = RoundedCornerShape(4.dp),

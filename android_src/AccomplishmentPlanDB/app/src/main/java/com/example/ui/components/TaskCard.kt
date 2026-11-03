@@ -52,6 +52,7 @@ import com.example.ui.theme.UnitChipText
 @Composable
 fun TaskCard(
     task: TaskItem,
+    displayIndex: Int = task.taskNumber,
     availableStatuses: List<String>,
     onCardClick: () -> Unit,
     onStatusChange: (String) -> Unit,
@@ -82,7 +83,7 @@ fun TaskCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${task.taskNumber}. ${task.description}",
+                    text = "$displayIndex. ${task.description}",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.5.sp,

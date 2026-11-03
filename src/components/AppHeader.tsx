@@ -17,6 +17,7 @@ interface AppHeaderProps {
   selectedMonth: string;
   totalCount: number;
   pendingCount: number;
+  statusCounts?: { name: string; count: number }[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onOpenMonthSelector: () => void;
@@ -30,6 +31,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   selectedMonth,
   totalCount,
   pendingCount,
+  statusCounts = [],
   searchQuery,
   onSearchChange,
   onOpenMonthSelector,
@@ -200,14 +202,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       )}
 
-      {/* Subheader Count Bar matching Android: Total Items: 17 | Pending: 12 */}
+      {/* Subheader Count Bar: Total Items: X | Pending: Y | Done: Z ... */}
       <div className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center text-xs sm:text-[13.5px] text-[#374151]">
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center overflow-x-auto whitespace-nowrap scrollbar-none text-xs sm:text-[13.5px] text-[#374151]">
           <span>Total Items:&nbsp;</span>
           <strong className="text-gray-900 font-bold">{totalCount}</strong>
-          <span className="text-gray-300 mx-2 sm:mx-3">|</span>
-          <span>Pending:&nbsp;</span>
-          <strong className="text-gray-900 font-bold">{pendingCount}</strong>
+          {statusCounts.length > 0 ? (
+            statusCounts.map((st, idx) => (
+              <React.Fragment key={st.name || idx}>
+                <span className="text-gray-300 mx-2 sm:mx-3">|</span>
+                <span>{st.name}:&nbsp;</span>
+                <strong className="text-gray-900 font-bold">{st.count}</strong>
+              </React.Fragment>
+            ))
+          ) : (
+            <>
+              <span className="text-gray-300 mx-2 sm:mx-3">|</span>
+              <span>Pending:&nbsp;</span>
+              <strong className="text-gray-900 font-bold">{pendingCount}</strong>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -1,13 +1,12 @@
 {
-  "name": "accomplishment-plan-db",
+  "name": "accomplishment-plan-db-web",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 3000",
+    "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview --port 3000 --host 0.0.0.0",
-    "lint": "tsc --noEmit"
+    "preview": "vite preview"
   },
   "dependencies": {
     "firebase": "^10.14.1",

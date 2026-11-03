@@ -51,7 +51,7 @@ export interface UserProfile {
   photoURL: string | null;
 }
 
-export const OFFICIAL_ACCOUNTS = [
+export const DEFAULT_ACCOUNTS = [
   { accountName: "M_Salaries wages(Basic salary)", accountCode: "4521001" },
   { accountName: "M_Salaries wages(Allowances)", accountCode: "4521002" },
   { accountName: "M_Salaries wages(Korean)", accountCode: "4521003" },
@@ -208,37 +208,14 @@ export const OFFICIAL_ACCOUNTS = [
   { accountName: "Software", accountCode: "1201521" },
 ];
 
-export const OFFICIAL_STATUSES = [
+export const DEFAULT_STATUSES = [
   'Draft Ready',
-  'Advance Draft Ready',
-  'Advance Ready',
-  'Advance Done',
-  'Payment Approval Ready',
   'Done',
-  'CS Ready',
-  'Approval in Audit',
-  'Approval in Audit (HOD)',
-  'CS in Accounts',
-  'Approval in Accounts',
-  'WO Done',
-  'Waiting for CFO Sign',
-  'Waiting for MD Sign',
-  'Cancel from CFO',
-  'Cancel from HOD',
-  'Cancel',
+  'Advance Ready',
   'Pending',
-  'Settlement',
-  'Hold from MR Team',
-  'Hold from CFO',
-  'Hold from MD',
-  'Done from HOD',
-  'Payment Pending',
-  'Next Month',
-  'No Need',
-  'Unavailable',
-] as const;
-
-export const DEFAULT_STATUSES = [...OFFICIAL_STATUSES];
+  'In Progress',
+  'Cancelled',
+];
 
 export const DEFAULT_UNITS = ['Unit-1', 'Unit-2', 'Unit-3'];
 
@@ -268,26 +245,11 @@ export const DEFAULT_CATEGORIES = [
   'Additional',
 ];
 
-export const DEFAULT_ACCOUNTS = OFFICIAL_ACCOUNTS;
-
-export function getAccountKey(name: string, code: string): string {
-  return `${name.trim().toLowerCase()}:::${code.trim()}`;
-}
-
-export const OFFICIAL_ACCOUNT_KEY_SET = new Set(
-  OFFICIAL_ACCOUNTS.map((a) => getAccountKey(a.accountName, a.accountCode))
-);
-
-export function isOfficialAccount(name: string, code: string): boolean {
-  return OFFICIAL_ACCOUNT_KEY_SET.has(getAccountKey(name, code));
-}
-
 export function getCodeForAccount(name: string, customAccounts: AccountItem[] = []): string {
   const custom = customAccounts.find((a) => a.accountName.toLowerCase().trim() === name.toLowerCase().trim());
   if (custom) return custom.accountCode;
-  const def = OFFICIAL_ACCOUNTS.find((a) => a.accountName.toLowerCase().trim() === name.toLowerCase().trim());
+  const def = DEFAULT_ACCOUNTS.find((a) => a.accountName.toLowerCase().trim() === name.toLowerCase().trim());
   if (def) return def.accountCode;
   const prefix = name.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'ACC';
   return `ACC-${prefix}001`;
 }
-
