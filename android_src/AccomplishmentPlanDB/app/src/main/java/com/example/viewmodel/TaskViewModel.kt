@@ -33,10 +33,14 @@ enum class ScreenState {
 
 class TaskViewModel(
     private val repository: TaskRepository = TaskRepository(),
-    private val auth: FirebaseAuth = Firebase.auth
+    customAuth: FirebaseAuth? = null
 ) : ViewModel() {
 
-    private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
+    private val auth: FirebaseAuth by lazy {
+        customAuth ?: Firebase.auth
+    }
+
+    private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
 
     private val _currentScreen = MutableStateFlow(ScreenState.TASK_LIST)
@@ -61,14 +65,23 @@ class TaskViewModel(
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
     init {
-        auth.addAuthStateListener { firebaseAuth ->
-            val user = firebaseAuth.currentUser
-            _currentUser.value = user
-            if (user != null) {
-                viewModelScope.launch {
-                    repository.initializeUserWorkspace(seedSampleTasks = true)
+        try {
+            _currentUser.value = auth.currentUser
+            auth.addAuthStateListener { firebaseAuth ->
+                val user = firebaseAuth.currentUser
+                _currentUser.value = user
+                if (user != null) {
+                    viewModelScope.launch {
+                        try {
+                            repository.initializeUserWorkspace(seedSampleTasks = true)
+                        } catch (e: Exception) {
+                            android.util.Log.e("TaskViewModel", "Workspace init: ${e.message}")
+                        }
+                    }
                 }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("TaskViewModel", "Error attaching FirebaseAuth listener: ${e.message}")
         }
     }
 

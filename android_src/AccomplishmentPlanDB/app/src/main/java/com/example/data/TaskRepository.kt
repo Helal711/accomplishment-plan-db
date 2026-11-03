@@ -21,10 +21,18 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
 class TaskRepository(
-    private val db: FirebaseFirestore = Firebase.firestore,
-    private val auth: FirebaseAuth = Firebase.auth
+    customDb: FirebaseFirestore? = null,
+    customAuth: FirebaseAuth? = null
 ) {
     private val tag = "TaskRepository"
+
+    val db: FirebaseFirestore by lazy {
+        customDb ?: Firebase.firestore
+    }
+
+    val auth: FirebaseAuth by lazy {
+        customAuth ?: Firebase.auth
+    }
 
     fun currentUserId(): String? = auth.currentUser?.uid
 
