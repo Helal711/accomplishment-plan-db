@@ -426,7 +426,8 @@ private fun performGoogleSignIn(
     onCancelled: () -> Unit
 ) {
     val clientId = try {
-        context.getString(R.string.default_web_client_id).ifBlank { null }
+        val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+        if (resId != 0) context.getString(resId).ifBlank { null } else null
     } catch (e: Exception) {
         null
     }

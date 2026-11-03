@@ -474,9 +474,9 @@ fun TaskListScreen(
     if (showCategoryDialog) {
         CategoryManagerDialog(
             categories = categories,
-            onAddCategory = { name, cb -> viewModel.addCategory(name, cb) },
-            onUpdateCategory = { id, name, cb -> viewModel.updateCategory(id, name, cb) },
-            onDeleteCategory = { id, cb -> viewModel.deleteCategory(id, cb) },
+            onAddCategory = { name -> viewModel.addCategory(name) },
+            onEditCategory = { id, name -> viewModel.updateCategory(id, name) },
+            onDeleteCategory = { id -> viewModel.deleteCategory(id) },
             onDismissRequest = { showCategoryDialog = false }
         )
     }
