@@ -119,8 +119,9 @@ class TaskViewModel(
 
     val availableStatusNames: StateFlow<List<String>> = customStatuses.combine(flowOf(AccountMaster.defaultStatuses)) { custom, defaults ->
         val names = custom.map { it.statusName }
-        if (names.isNotEmpty()) names else defaults
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccountMaster.defaultStatuses)
+        val list = if (names.isNotEmpty()) names else defaults
+        list.distinct().sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccountMaster.defaultStatuses.sortedWith(String.CASE_INSENSITIVE_ORDER))
 
     // Dynamic categories for current user
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -134,8 +135,9 @@ class TaskViewModel(
 
     val availableCategoryNames: StateFlow<List<String>> = categories.combine(flowOf(AccountMaster.defaultCategories)) { custom, defaults ->
         val names = custom.map { it.categoryName }
-        if (names.isNotEmpty()) names else defaults
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccountMaster.defaultCategories)
+        val list = if (names.isNotEmpty()) names else defaults
+        list.distinct().sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccountMaster.defaultCategories.sortedWith(String.CASE_INSENSITIVE_ORDER))
 
     // Filtered tasks by search query
     val filteredTasks = combine(tasks, _searchQuery) { taskList, query ->
@@ -221,7 +223,7 @@ class TaskViewModel(
     fun deleteTask(taskId: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
             _isSyncing.value = true
-            val res = repository.deleteTask(taskId)
+            val res = repository.deleteTask(taskId, _selectedMonth.value)
             _isSyncing.value = false
             if (res.isSuccess) {
                 navigateBackToTaskList()

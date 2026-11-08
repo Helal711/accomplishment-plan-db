@@ -69,7 +69,7 @@ export const TaskFormPage: React.FC = () => {
   const [category, setCategory] = useState(initialTask?.category || 'Materials');
   const [remarks, setRemarks] = useState(initialTask?.remarks || '');
   const [monthYear] = useState(initialTask?.monthYear || initialMonth);
-  const [taskNumber] = useState(initialTask?.taskNumber || 1);
+  const [taskNumber, setTaskNumber] = useState(initialTask?.taskNumber || 1);
 
   // Subscriptions
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -81,6 +81,17 @@ export const TaskFormPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [accountSearchQuery, setAccountSearchQuery] = useState('');
+
+  // Auto-calculate next serial number for new task if not passed
+  useEffect(() => {
+    if (isNew && currentUser) {
+      import('../firebase/db').then(({ getNextTaskNumber }) => {
+        getNextTaskNumber(currentUser.uid, monthYear).then((nextNum) => {
+          setTaskNumber(nextNum);
+        });
+      });
+    }
+  }, [isNew, currentUser, monthYear]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -119,19 +130,23 @@ export const TaskFormPage: React.FC = () => {
     );
   }, [combinedAccounts, accountSearchQuery]);
 
-  // Combine statuses
-  const combinedStatusNames = Array.from(
-    new Set([...DEFAULT_STATUSES, ...statuses.map((s) => s.statusName)])
-  );
+  // Combine and sort statuses A-Z (case-insensitive) for display
+  const combinedStatusNames = useMemo(() => {
+    const set = new Set([...DEFAULT_STATUSES, ...statuses.map((s) => s.statusName)]);
+    if (status && !set.has(status)) {
+      set.add(status);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [statuses, status]);
 
-  // Combine categories
+  // Combine and sort categories A-Z (case-insensitive) for display
   const combinedCategoryNames = useMemo(() => {
     const custom = categories.map((c) => c.categoryName);
     const set = new Set([...DEFAULT_CATEGORIES, ...custom]);
     if (category && !set.has(category)) {
       set.add(category);
     }
-    return Array.from(set);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [categories, category]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,7 +228,7 @@ export const TaskFormPage: React.FC = () => {
     if (!taskId || isNew) return;
     try {
       setSaving(true);
-      await deleteTask(taskId);
+      await deleteTask(taskId, monthYear, currentUser?.uid);
       setShowDeleteModal(false);
       navigate('/');
     } catch (err: any) {
@@ -343,16 +358,16 @@ export const TaskFormPage: React.FC = () => {
                 {(['High', 'Med', 'Low'] as Priority[]).map((p) => {
                   const isSelected = priority === p;
                   let colorClass = 'border-gray-200 text-gray-700 bg-gray-50';
-                  let dotColor = 'bg-gray-400';
+                  let dotBg = '#FB8C00';
 
                   if (p === 'High') {
-                    dotColor = 'bg-priority-high';
+                    dotBg = '#E53935';
                     if (isSelected) colorClass = 'border-red-500 bg-red-50 text-red-700 font-bold shadow-sm';
                   } else if (p === 'Med') {
-                    dotColor = 'bg-priority-med';
+                    dotBg = '#FB8C00';
                     if (isSelected) colorClass = 'border-amber-500 bg-amber-50 text-amber-700 font-bold shadow-sm';
                   } else {
-                    dotColor = 'bg-priority-low';
+                    dotBg = '#43A047';
                     if (isSelected) colorClass = 'border-green-500 bg-green-50 text-green-700 font-bold shadow-sm';
                   }
 
@@ -363,7 +378,7 @@ export const TaskFormPage: React.FC = () => {
                       onClick={() => setPriority(p)}
                       className={`flex items-center justify-center space-x-2 py-2.5 px-3 rounded-lg border text-xs sm:text-sm transition-all ${colorClass}`}
                     >
-                      <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`}></span>
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotBg }}></span>
                       <span>{p}</span>
                     </button>
                   );

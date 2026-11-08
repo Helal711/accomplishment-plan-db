@@ -1,6 +1,7 @@
 package com.example
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,8 +28,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        (application as? AccomplishmentPlanApplication)?.ensureFirebaseInitialized()
-        enableEdgeToEdge()
+        try {
+            (application as? AccomplishmentPlanApplication)?.ensureFirebaseInitialized()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Firebase init warning: ${e.message}", e)
+        }
+        try {
+            enableEdgeToEdge()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "enableEdgeToEdge warning: ${e.message}", e)
+        }
         setContent {
             MyApplicationTheme {
                 Surface(

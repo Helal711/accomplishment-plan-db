@@ -50,6 +50,18 @@ export const DashboardPage: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
 
+  // Reset user data when logged out or switched
+  useEffect(() => {
+    if (!currentUser) {
+      setTasks([]);
+      setAccounts([]);
+      setStatuses([]);
+      setCategories([]);
+      setSearchQuery('');
+      setLoadingTasks(false);
+    }
+  }, [currentUser]);
+
   // Subscribe to tasks for current user and month
   useEffect(() => {
     if (!currentUser) return;
@@ -145,7 +157,7 @@ export const DashboardPage: React.FC = () => {
   const handleConfirmDelete = async () => {
     if (!taskToDelete) return;
     try {
-      await deleteTask(taskToDelete.id);
+      await deleteTask(taskToDelete.id, selectedMonth, currentUser?.uid);
       setTaskToDelete(null);
     } catch (err) {
       console.error('Failed to delete task:', err);
@@ -214,7 +226,7 @@ export const DashboardPage: React.FC = () => {
                 <TaskCard
                   key={task.id || `${task.taskNumber}-${index}`}
                   task={task}
-                  serialNumber={index + 1}
+                  serialNumber={task.taskNumber}
                   availableStatuses={availableStatusNames}
                   onCardClick={() => navigate(`/tasks/${task.id}`, { state: { task } })}
                   onStatusChange={(newStatus) => handleStatusChange(task.id, newStatus)}

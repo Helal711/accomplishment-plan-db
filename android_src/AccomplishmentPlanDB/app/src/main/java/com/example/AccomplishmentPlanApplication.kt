@@ -9,7 +9,16 @@ class AccomplishmentPlanApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        setupUncaughtExceptionHandler()
         ensureFirebaseInitialized()
+    }
+
+    private fun setupUncaughtExceptionHandler() {
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e(TAG, "FATAL CRASH on thread ${thread.name}: ${throwable.message}", throwable)
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
     }
 
     fun ensureFirebaseInitialized() {
@@ -36,9 +45,10 @@ class AccomplishmentPlanApplication : Application() {
                     .setApiKey("AIzaSyCb46rloSBnJqmMuDl2p5cNHKLxJdMHXIA")
                     .setProjectId("accomplishment-plan-db")
                     .setStorageBucket("accomplishment-plan-db.firebasestorage.app")
+                    .setGcmSenderId("724771876461")
                     .build()
                 FirebaseApp.initializeApp(this, options)
-                Log.i(TAG, "FirebaseApp successfully initialized with project configuration")
+                Log.i(TAG, "FirebaseApp successfully initialized with fallback configuration")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Fallback Firebase initialization error: ${e.message}", e)

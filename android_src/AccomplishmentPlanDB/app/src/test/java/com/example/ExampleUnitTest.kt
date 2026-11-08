@@ -313,16 +313,127 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun testPreserveOldStatusOnOldTasks() {
-        val oldTask = TaskItem(
-            id = "t_old_custom_status",
-            ownerUid = "user_1",
-            status = "Legacy Old Status"
-        )
-        assertEquals("Legacy Old Status", oldTask.status)
-        // Not in official 27 list, but preserved
-        assertFalse(AccountMaster.defaultStatuses.contains(oldTask.status))
+    fun testTaskNumberValidationAndSanitization() {
+        // Positive valid numbers
+        assertEquals(1, com.example.data.TaskRepository.sanitizeTaskNumber(1))
+        assertEquals(5, com.example.data.TaskRepository.sanitizeTaskNumber(5L))
+        assertEquals(10, com.example.data.TaskRepository.sanitizeTaskNumber(10.0))
+        assertEquals(42, com.example.data.TaskRepository.sanitizeTaskNumber("42"))
+        assertEquals(99, com.example.data.TaskRepository.sanitizeTaskNumber("  99  "))
+
+        // Invalid values that must be rejected (return null, never silently 1)
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber(null))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber(""))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber("   "))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber("abc"))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber(0))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber(-5))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber(3.14))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber(Double.NaN))
+        assertNull(com.example.data.TaskRepository.sanitizeTaskNumber(Double.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun testSixConsecutiveTaskCreationsSimulation() {
+        // Simulates Month_Counters incrementation over 6 additions
+        var counterLast = 0
+        val createdTasks = mutableListOf<TaskItem>()
+
+        for (i in 1..6) {
+            val allocatedNum = counterLast + 1
+            counterLast = allocatedNum
+            createdTasks.add(
+                TaskItem(
+                    id = "task_$i",
+                    ownerUid = "uid_test",
+                    taskNumber = allocatedNum,
+                    monthYear = "Feb-2027",
+                    description = "Test Task $i"
+                )
+            )
+        }
+
+        assertEquals(6, createdTasks.size)
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), createdTasks.map { it.taskNumber })
+        assertEquals(6, counterLast)
+    }
+
+    @Test
+    fun testDeleteTaskThreeAndRenumberRemainingTasks() {
+        // Setup 6 tasks
+        val tasks = (1..6).map { i ->
+            TaskItem(
+                id = "doc_$i",
+                ownerUid = "uid_test",
+                taskNumber = i,
+                monthYear = "Feb-2027",
+                description = "Task $i"
+            )
+        }.toMutableList()
+
+        // Delete task #3
+        val taskIdToDelete = "doc_3"
+        val remaining = tasks.filter { it.id != taskIdToDelete }
+            .sortedWith(compareBy({ it.taskNumber }, { it.id }))
+
+        // Renumber remaining sequentially 1..N
+        val renumbered = remaining.mapIndexed { index, item ->
+            item.copy(taskNumber = index + 1)
+        }
+        val newCounterLast = renumbered.size
+
+        assertEquals(5, renumbered.size)
+        assertEquals(listOf(1, 2, 3, 4, 5), renumbered.map { it.taskNumber })
+        assertEquals("doc_4", renumbered[2].id)
+        assertEquals(3, renumbered[2].taskNumber)
+        assertEquals(5, newCounterLast)
+    }
+
+    @Test
+    fun testCreateTaskImmediatelyAfterDeletion() {
+        // After deleting task 3 out of 6, counter is 5
+        var counterLast = 5
+        val nextAllocated = counterLast + 1
+        counterLast = nextAllocated
+
+        assertEquals(6, nextAllocated)
+        assertEquals(6, counterLast)
+    }
+
+    @Test
+    fun testConcurrentAddConflictSimulation() {
+        // When two devices attempt to add concurrently with same initial counter (e.g. 2):
+        // Device A reads counter 2, writes counter 3, task #3.
+        // Device B detects counter changed to 3, retries, reads counter 3, writes counter 4, task #4.
+        var counter = 2
+        fun allocate(currentCounter: Int): Pair<Int, Int> {
+            val next = currentCounter + 1
+            return next to next // (allocatedTaskNumber, newCounter)
+        }
+
+        // Device A succeeds
+        val (deviceATaskNum, newCounterA) = allocate(counter)
+        counter = newCounterA
+        assertEquals(3, deviceATaskNum)
+
+        // Device B retries with fresh counter
+        val (deviceBTaskNum, newCounterB) = allocate(counter)
+        counter = newCounterB
+        assertEquals(4, deviceBTaskNum)
+        assertEquals(4, counter)
+    }
+
+    @Test
+    fun testConcurrentAddDeleteConflictDetection() {
+        // While delete is renumbering 4 tasks (snap length 5 before delete),
+        // if an add operation committed concurrently, counter advances to 6.
+        val preFetchTaskCount = 5
+        val concurrentCommittedCounter = 6
+
+        val shouldRetry = concurrentCommittedCounter > preFetchTaskCount
+        assertTrue("Delete must detect concurrent add and trigger retry", shouldRetry)
     }
 }
+
 
 

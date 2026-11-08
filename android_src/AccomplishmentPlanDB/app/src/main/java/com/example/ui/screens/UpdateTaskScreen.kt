@@ -92,6 +92,24 @@ fun UpdateTaskScreen(
         onNavigateBack()
     }
 
+    // Sort categories A-Z case-insensitively, ensuring task.category is included if non-blank
+    val displayCategories = remember(availableCategories, task.category) {
+        val set = availableCategories.toMutableSet()
+        if (task.category.isNotBlank()) {
+            set.add(task.category)
+        }
+        set.filter { it.isNotBlank() }.sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }
+
+    // Sort statuses A-Z case-insensitively, ensuring task.status is included
+    val displayStatuses = remember(availableStatuses, task.status) {
+        val set = availableStatuses.toMutableSet()
+        if (task.status.isNotBlank()) {
+            set.add(task.status)
+        }
+        set.filter { it.isNotBlank() }.sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }
+
     val combinedAccounts = remember(userAccounts) {
         val predefined = AccountMaster.accounts
         val userCustom = userAccounts.map { it.accountName to it.accountCode }
@@ -631,7 +649,7 @@ fun UpdateTaskScreen(
                             categoryMenuExpanded = false
                         }
                     )
-                    availableCategories.forEach { catOption ->
+                    displayCategories.forEach { catOption ->
                         DropdownMenuItem(
                             text = { Text(catOption, fontSize = 13.5.sp) },
                             onClick = {
@@ -675,7 +693,7 @@ fun UpdateTaskScreen(
                     expanded = statusMenuExpanded,
                     onDismissRequest = { statusMenuExpanded = false }
                 ) {
-                    availableStatuses.forEach { statusOption ->
+                    displayStatuses.forEach { statusOption ->
                         DropdownMenuItem(
                             text = { Text(statusOption, fontSize = 13.5.sp) },
                             onClick = {

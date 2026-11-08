@@ -91,7 +91,14 @@ fun AuthScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val credentialManager = remember { CredentialManager.create(context) }
+    val credentialManager = remember {
+        try {
+            CredentialManager.create(context)
+        } catch (e: Exception) {
+            Log.e("AuthScreen", "CredentialManager unavailable: ${e.message}", e)
+            null
+        }
+    }
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -419,12 +426,17 @@ fun AuthScreen(
 
 private fun performGoogleSignIn(
     context: Context,
-    credentialManager: CredentialManager,
+    credentialManager: CredentialManager?,
     scope: CoroutineScope,
     onSuccess: () -> Unit,
     onError: (String) -> Unit,
     onCancelled: () -> Unit
 ) {
+    if (credentialManager == null) {
+        onError("Google Sign-In is unavailable on this device configuration. Please sign in with Email & Password above.")
+        return
+    }
+
     val clientId = try {
         val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
         if (resId != 0) context.getString(resId).ifBlank { null } else null
@@ -463,15 +475,23 @@ private fun performGoogleSignIn(
 }
 
 fun signOutUser(context: Context, onSignedOut: () -> Unit, scope: CoroutineScope) {
-    Firebase.auth.signOut()
-    val credentialManager = CredentialManager.create(context)
-    scope.launch {
-        try {
-            credentialManager.clearCredentialState(ClearCredentialStateRequest())
-        } catch (e: Exception) {
-            Log.e("Auth", "Failed to clear credentials: ${e.message}")
-        } finally {
-            onSignedOut()
+    try {
+        Firebase.auth.signOut()
+    } catch (e: Exception) {
+        Log.e("Auth", "Firebase signOut error: ${e.message}")
+    }
+    val credentialManager = try { CredentialManager.create(context) } catch (e: Exception) { null }
+    if (credentialManager != null) {
+        scope.launch {
+            try {
+                credentialManager.clearCredentialState(ClearCredentialStateRequest())
+            } catch (e: Exception) {
+                Log.e("Auth", "Failed to clear credentials: ${e.message}")
+            } finally {
+                onSignedOut()
+            }
         }
+    } else {
+        onSignedOut()
     }
 }

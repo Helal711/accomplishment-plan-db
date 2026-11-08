@@ -167,6 +167,35 @@
         }
       },
       "required": ["ownerUid", "categoryName"]
+    },
+    "MonthCounter": {
+      "title": "MonthCounter",
+      "description": "Per-user per-month task serial number counter",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Document ID formatted as {ownerUid}_{monthYear}"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Authentication UID of the owner"
+        },
+        "monthYear": {
+          "type": "string",
+          "description": "Month-year category (e.g. Nov-2026)"
+        },
+        "lastTaskNumber": {
+          "type": "integer",
+          "description": "Latest assigned task number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Update timestamp"
+        }
+      },
+      "required": ["ownerUid", "monthYear", "lastTaskNumber"]
     }
   },
   "firestore": {
@@ -193,6 +222,12 @@
         "$ref": "#/entities/CategoryItem"
       },
       "description": "Per-user custom categories"
+    },
+    "/Month_Counters/{counterId}": {
+      "schema": {
+        "$ref": "#/entities/MonthCounter"
+      },
+      "description": "Per-user per-month task serial number counter"
     }
   }
 }

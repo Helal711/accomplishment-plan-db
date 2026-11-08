@@ -425,10 +425,10 @@ fun TaskListScreen(
                     contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    itemsIndexed(tasks, key = { index, it -> it.id.ifBlank { "${it.taskNumber}-$index" } }) { index, task ->
+                    itemsIndexed(tasks, key = { index, it -> it.id.ifBlank { "${it.taskNumber}-$index" } }) { _, task ->
                         TaskCard(
                             task = task,
-                            displayIndex = index + 1,
+                            displayIndex = task.taskNumber,
                             availableStatuses = availableStatuses,
                             onCardClick = { viewModel.openUpdateTask(task) },
                             onStatusChange = { newStatus ->

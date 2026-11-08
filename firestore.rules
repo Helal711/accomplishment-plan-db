@@ -12,7 +12,14 @@ service cloud.firestore {
     }
 
     function isCreateOwner() {
-      return isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      return isSignedIn() &&
+             'ownerUid' in request.resource.data &&
+             request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Allows authenticated owner to get document, and returns clean exists() == false if doc does not exist
+    function canReadDoc() {
+      return isSignedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
     }
 
     function incoming() {
@@ -25,7 +32,7 @@ service cloud.firestore {
 
     // Schema Validation Helpers
     function isValidTask(data) {
-      return (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid.size() <= 128)) &&
+      return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
              (!('amount' in data) || (data.amount is string && data.amount.size() <= 50)) &&
              (!('taskNumber' in data) || data.taskNumber is number) &&
@@ -53,23 +60,30 @@ service cloud.firestore {
     }
 
     function isValidAccount(data) {
-      return (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid.size() <= 128)) &&
+      return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('accountName' in data) || (data.accountName is string && data.accountName.size() <= 200)) &&
              (!('accountCode' in data) || (data.accountCode is string && data.accountCode.size() <= 50)) &&
              (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidStatus(data) {
-      return (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid.size() <= 128)) &&
+      return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('statusName' in data) || (data.statusName is string && data.statusName.size() <= 100)) &&
              (!('isDefault' in data) || data.isDefault is bool) &&
              (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidCategory(data) {
-      return (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid.size() <= 128)) &&
+      return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('categoryName' in data) || (data.categoryName is string && data.categoryName.size() <= 100)) &&
              (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidMonthCounter(data) {
+      return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
+             (!('monthYear' in data) || (data.monthYear is string && data.monthYear.size() <= 50)) &&
+             (!('lastTaskNumber' in data) || (data.lastTaskNumber is number && data.lastTaskNumber >= 0)) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
@@ -80,7 +94,7 @@ service cloud.firestore {
 
     // Tasks Collection
     match /Tasks/{taskId} {
-      allow get: if isDocOwner();
+      allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
       allow create: if isCreateOwner() && isValidTask(incoming());
       allow update: if isDocOwner() &&
@@ -91,7 +105,7 @@ service cloud.firestore {
 
     // Account List Collection
     match /Account_List/{accountId} {
-      allow get: if isDocOwner();
+      allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
       allow create: if isCreateOwner() && isValidAccount(incoming());
       allow update: if isDocOwner() &&
@@ -102,7 +116,7 @@ service cloud.firestore {
 
     // Status List Collection
     match /Status_List/{statusId} {
-      allow get: if isDocOwner();
+      allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
       allow create: if isCreateOwner() && isValidStatus(incoming());
       allow update: if isDocOwner() &&
@@ -113,12 +127,23 @@ service cloud.firestore {
 
     // Category List Collection
     match /Category_List/{categoryId} {
-      allow get: if isDocOwner();
+      allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
       allow create: if isCreateOwner() && isValidCategory(incoming());
       allow update: if isDocOwner() &&
                        (!('ownerUid' in incoming()) || incoming().ownerUid == existing().ownerUid) &&
                        isValidCategory(incoming());
+      allow delete: if isDocOwner();
+    }
+
+    // Month Counters Collection (Concurrency-safe per-user per-month task counters)
+    match /Month_Counters/{counterId} {
+      allow get: if canReadDoc();
+      allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isCreateOwner() && isValidMonthCounter(incoming());
+      allow update: if isDocOwner() &&
+                       (!('ownerUid' in incoming()) || incoming().ownerUid == existing().ownerUid) &&
+                       isValidMonthCounter(incoming());
       allow delete: if isDocOwner();
     }
   }

@@ -175,20 +175,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
 export const PriorityBadge: React.FC<{ priority: Priority | string }> = ({ priority }) => {
   const norm = (priority || '').toLowerCase();
-  let dotColor = 'bg-priority-med';
+  let dotBg = '#FB8C00';
   let label = 'Med';
 
   if (norm === 'high') {
-    dotColor = 'bg-priority-high';
+    dotBg = '#E53935';
     label = 'High';
   } else if (norm === 'low') {
-    dotColor = 'bg-priority-low';
+    dotBg = '#43A047';
     label = 'Low';
   }
 
   return (
     <div className="inline-flex items-center space-x-1.5">
-      <span className={`w-2 h-2 rounded-full ${dotColor}`}></span>
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: dotBg }}></span>
       <span className="text-xs font-semibold text-gray-700">{label}</span>
     </div>
   );
