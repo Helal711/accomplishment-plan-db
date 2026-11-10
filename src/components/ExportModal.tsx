@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Download, FileSpreadsheet, FileText, Printer, X, Check, Copy } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Printer, X, Check, Copy, Table } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { TaskItem } from '../types';
 
 interface ExportModalProps {
@@ -19,50 +20,150 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 1. Export CSV
+  // Helper to parse numeric amount for Excel and calculations
+  const parseNumericAmount = (amt: string | number | undefined): number => {
+    if (typeof amt === 'number') return Number.isFinite(amt) ? amt : 0;
+    if (!amt) return 0;
+    const cleaned = String(amt).replace(/[^0-9.-]+/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // 1. Export real Microsoft Excel (.xlsx) workbook using SheetJS
+  const handleExportExcel = () => {
+    try {
+      const excelRows = tasks.map((t, idx) => {
+        const taskNum = typeof t.taskNumber === 'number' && Number.isFinite(t.taskNumber) && t.taskNumber > 0
+          ? t.taskNumber
+          : idx + 1;
+        const numericAmount = parseNumericAmount(t.amount);
+
+        return {
+          'Task No': taskNum,
+          'Description': t.description || '',
+          'Amount (TK)': numericAmount,
+          'Payment Mode': t.paymentMode || '',
+          'Unit': t.unit || '',
+          'Priority': t.priority || '',
+          'Status': t.status || '',
+          'Expected Date': t.expectedDate || '',
+          'Account Name': t.accountName || '',
+          'Account Code': t.accountCode || '',
+          'Category': t.category || '',
+          'Remarks': t.remarks || '',
+          'Month/Year': t.monthYear || currentMonth,
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(excelRows);
+
+      // Explicit column widths for professional readability
+      ws['!cols'] = [
+        { wch: 10 }, // Task No
+        { wch: 45 }, // Description
+        { wch: 15 }, // Amount (TK)
+        { wch: 15 }, // Payment Mode
+        { wch: 12 }, // Unit
+        { wch: 12 }, // Priority
+        { wch: 15 }, // Status
+        { wch: 15 }, // Expected Date
+        { wch: 32 }, // Account Name
+        { wch: 15 }, // Account Code
+        { wch: 18 }, // Category
+        { wch: 45 }, // Remarks
+        { wch: 15 }, // Month/Year
+      ];
+
+      // Freeze top header row so it stays visible while scrolling in Microsoft Excel
+      ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Accomplishment Plan');
+
+      // Generate binary array and trigger download with proper MIME type
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Accomplishment_Plan_Tasks_${currentMonth}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      onClose();
+    } catch (err) {
+      console.error('Error generating Excel file:', err);
+      alert('Failed to generate Excel file. Please try again.');
+    }
+  };
+
+  // 2. Export UTF-8 BOM encoded CSV with Windows-compatible CRLF line endings
   const handleExportCSV = () => {
-    const headers = [
-      'Task No',
-      'Description',
-      'Amount (TK)',
-      'Payment Mode',
-      'Unit',
-      'Priority',
-      'Status',
-      'Expected Date',
-      'Account Name',
-      'Account Code',
-      'Remarks',
-      'Month/Year',
-    ];
+    try {
+      const headers = [
+        'Task No',
+        'Description',
+        'Amount (TK)',
+        'Payment Mode',
+        'Unit',
+        'Priority',
+        'Status',
+        'Expected Date',
+        'Account Name',
+        'Account Code',
+        'Category',
+        'Remarks',
+        'Month/Year',
+      ];
 
-    const rows = tasks.map((t, idx) => [
-      idx + 1,
-      `"${(t.description || '').replace(/"/g, '""')}"`,
-      `"${t.amount || ''}"`,
-      `"${t.paymentMode || ''}"`,
-      `"${t.unit || ''}"`,
-      `"${t.priority || ''}"`,
-      `"${t.status || ''}"`,
-      `"${t.expectedDate || ''}"`,
-      `"${(t.accountName || '').replace(/"/g, '""')}"`,
-      `"${t.accountCode || ''}"`,
-      `"${(t.remarks || '').replace(/"/g, '""')}"`,
-      `"${t.monthYear || currentMonth}"`,
-    ]);
+      const escapeCsv = (val: string | number | undefined | null) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+      const rows = tasks.map((t, idx) => {
+        const taskNum = typeof t.taskNumber === 'number' && Number.isFinite(t.taskNumber) && t.taskNumber > 0
+          ? t.taskNumber
+          : idx + 1;
+        const numericAmount = parseNumericAmount(t.amount);
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Accomplishment_Plan_${currentMonth}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onClose();
+        return [
+          taskNum,
+          escapeCsv(t.description),
+          numericAmount,
+          escapeCsv(t.paymentMode),
+          escapeCsv(t.unit),
+          escapeCsv(t.priority),
+          escapeCsv(t.status),
+          escapeCsv(t.expectedDate),
+          escapeCsv(t.accountName),
+          escapeCsv(t.accountCode),
+          escapeCsv(t.category),
+          escapeCsv(t.remarks),
+          escapeCsv(t.monthYear || currentMonth),
+        ].join(',');
+      });
+
+      // Include UTF-8 BOM (\uFEFF) and Windows CRLF (\r\n) for perfect Microsoft Excel compatibility
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Accomplishment_Plan_Tasks_${currentMonth}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      onClose();
+    } catch (err) {
+      console.error('Error exporting CSV:', err);
+      alert('Failed to export CSV. Please try again.');
+    }
   };
 
   // Generate formatted summary text matching Android
@@ -338,18 +439,48 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </p>
 
         <div className="space-y-2.5 my-3">
-          {/* CSV Spreadsheet */}
+          {/* Real Microsoft Excel (.xlsx) */}
           <button
             type="button"
-            onClick={handleExportCSV}
-            className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50/40 text-left transition-all group"
+            onClick={handleExportExcel}
+            className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/40 text-left transition-all group"
           >
-            <div className="w-10 h-10 rounded-lg bg-green-100 text-green-700 flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-105 transition-transform">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-gray-900">Excel / CSV Spreadsheet (.csv)</div>
-              <div className="text-xs text-gray-500">Universal table format compatible with MS Excel & Sheets</div>
+              <div className="text-sm font-semibold text-gray-900">Export Excel (.xlsx)</div>
+              <div className="text-xs text-gray-500">Native Excel workbook with formatted columns, numbers & frozen header</div>
+            </div>
+          </button>
+
+          {/* UTF-8 BOM CSV (.csv) */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-teal-500 hover:bg-teal-50/40 text-left transition-all group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-105 transition-transform">
+              <Table className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-gray-900">Export CSV (.csv)</div>
+              <div className="text-xs text-gray-500">UTF-8 BOM encoded with CRLF for Microsoft Excel & Google Sheets</div>
+            </div>
+          </button>
+
+          {/* Dedicated PDF Document */}
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50/40 text-left transition-all group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-105 transition-transform">
+              <Printer className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-gray-900">Export PDF Document (Print/PDF)</div>
+              <div className="text-xs text-gray-500">Generates clean report table without dialog/popup UI</div>
             </div>
           </button>
 
@@ -365,21 +496,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div>
               <div className="text-sm font-semibold text-gray-900">Formatted Text Report (.txt)</div>
               <div className="text-xs text-gray-500">Structured narrative summary with all task notes & remarks</div>
-            </div>
-          </button>
-
-          {/* Dedicated PDF Document */}
-          <button
-            type="button"
-            onClick={handleExportPDF}
-            className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50/40 text-left transition-all group"
-          >
-            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-105 transition-transform">
-              <Printer className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-gray-900">PDF Report Document (Print/PDF)</div>
-              <div className="text-xs text-gray-500">Generates clean report table without dialog/popup UI</div>
             </div>
           </button>
         </div>

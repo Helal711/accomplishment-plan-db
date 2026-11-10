@@ -291,62 +291,80 @@ export async function addTask(task: Omit<TaskItem, 'id'>): Promise<string> {
   const counterId = `${currentAuthUid}_${task.monthYear}`;
   const counterRef = doc(db, 'Month_Counters', counterId);
 
-  // Check if counter document exists
-  let counterSnap = await getDoc(counterRef);
+  // Step A: Inspect counter document state with diagnostic error capture
+  let counterSnap;
+  try {
+    counterSnap = await getDoc(counterRef);
+    console.log(`[Firestore Diagnostics] Month_Counters getDoc success. exists: ${counterSnap.exists()}`);
+  } catch (err: any) {
+    console.error(`[Firestore Diagnostics] Error reading Month_Counters/${counterId}:`, err);
+    throw new Error(`[Month_Counters read permission error]: ${err.message || 'Permission denied'}`);
+  }
 
   // If counter document does not exist yet (first task in month or uninitialized sheet),
   // bootstrap baseline from existing tasks once before entering the transaction.
   let bootstrapBaseline: number | null = null;
   if (!counterSnap.exists()) {
-    const q = query(
-      collection(db, 'Tasks'),
-      where('ownerUid', '==', currentAuthUid),
-      where('monthYear', '==', task.monthYear)
-    );
-    const existingSnap = await getDocs(q);
-    let maxFound = 0;
-    existingSnap.docs.forEach((d) => {
-      const sanitized = sanitizeTaskNumber(d.data().taskNumber);
-      if (sanitized !== null && sanitized > maxFound) maxFound = sanitized;
-    });
-    bootstrapBaseline = maxFound;
+    try {
+      const q = query(
+        collection(db, 'Tasks'),
+        where('ownerUid', '==', currentAuthUid),
+        where('monthYear', '==', task.monthYear)
+      );
+      const existingSnap = await getDocs(q);
+      let maxFound = 0;
+      existingSnap.docs.forEach((d) => {
+        const sanitized = sanitizeTaskNumber(d.data().taskNumber);
+        if (sanitized !== null && sanitized > maxFound) maxFound = sanitized;
+      });
+      bootstrapBaseline = maxFound;
+      console.log(`[Firestore Diagnostics] Tasks query bootstrap success. maxFound: ${maxFound}`);
+    } catch (err: any) {
+      console.error(`[Firestore Diagnostics] Error querying Tasks for ownerUid: ${currentAuthUid}:`, err);
+      throw new Error(`[Tasks query permission error]: ${err.message || 'Permission denied'}`);
+    }
   }
 
   const newTaskRef = doc(collection(db, 'Tasks'));
   let allocatedTaskNumber = 1;
 
   // Run atomic transaction. Month_Counters acts as the single source of truth and concurrency lock.
-  await runTransaction(db, async (transaction) => {
-    const freshCounterSnap = await transaction.get(counterRef);
-    let counterLast = 0;
+  try {
+    await runTransaction(db, async (transaction) => {
+      const freshCounterSnap = await transaction.get(counterRef);
+      let counterLast = 0;
 
-    if (freshCounterSnap.exists()) {
-      const raw = freshCounterSnap.data().lastTaskNumber;
-      const sanitized = sanitizeTaskNumber(raw);
-      counterLast = sanitized ?? (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0);
-    } else if (bootstrapBaseline !== null) {
-      counterLast = bootstrapBaseline;
-    }
+      if (freshCounterSnap.exists()) {
+        const raw = freshCounterSnap.data().lastTaskNumber;
+        const sanitized = sanitizeTaskNumber(raw);
+        counterLast = sanitized ?? (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0);
+      } else if (bootstrapBaseline !== null) {
+        counterLast = bootstrapBaseline;
+      }
 
-    allocatedTaskNumber = counterLast + 1;
+      allocatedTaskNumber = counterLast + 1;
 
-    // 1. Create task document inside transaction
-    transaction.set(newTaskRef, {
-      ...task,
-      ownerUid: currentAuthUid,
-      taskNumber: allocatedTaskNumber,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      // 1. Create task document inside transaction
+      transaction.set(newTaskRef, {
+        ...task,
+        ownerUid: currentAuthUid,
+        taskNumber: allocatedTaskNumber,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // 2. Increment / initialize counter document inside transaction atomically
+      transaction.set(counterRef, {
+        ownerUid: currentAuthUid,
+        monthYear: task.monthYear,
+        lastTaskNumber: allocatedTaskNumber,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
     });
-
-    // 2. Increment / initialize counter document inside transaction atomically
-    transaction.set(counterRef, {
-      ownerUid: currentAuthUid,
-      monthYear: task.monthYear,
-      lastTaskNumber: allocatedTaskNumber,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-  });
+  } catch (err: any) {
+    console.error(`[Firestore Diagnostics] Error executing addTask transaction:`, err);
+    throw new Error(`[Transaction save error]: ${err.message || 'Permission denied'}`);
+  }
 
   logFirestoreOp('Tasks', 'create_transaction_success', currentAuthUid, newTaskRef.id);
   return newTaskRef.id;

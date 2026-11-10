@@ -177,19 +177,32 @@ class TaskRepository(
             val counterRef = db.collection("Month_Counters").document(counterId)
 
             // Check if counter document exists
-            val counterSnap = counterRef.get().await()
+            val counterSnap = try {
+                val snap = counterRef.get().await()
+                Log.i(tag, "[Firestore Diagnostics] Month_Counters get success. exists: ${snap.exists()}")
+                snap
+            } catch (e: Exception) {
+                Log.e(tag, "[Firestore Diagnostics] Month_Counters get error: ${e.message}", e)
+                throw Exception("[Month_Counters read permission error]: ${e.message}")
+            }
 
             // If counter document does not exist yet, bootstrap baseline from existing tasks once
             var bootstrapBaseline: Int? = null
             if (!counterSnap.exists()) {
-                val existingSnap = db.collection("Tasks")
-                    .whereEqualTo("ownerUid", uid)
-                    .whereEqualTo("monthYear", task.monthYear)
-                    .get()
-                    .await()
-                bootstrapBaseline = existingSnap.documents.mapNotNull { doc ->
-                    sanitizeTaskNumber(doc.get("taskNumber"))
-                }.maxOrNull() ?: 0
+                try {
+                    val existingSnap = db.collection("Tasks")
+                        .whereEqualTo("ownerUid", uid)
+                        .whereEqualTo("monthYear", task.monthYear)
+                        .get()
+                        .await()
+                    bootstrapBaseline = existingSnap.documents.mapNotNull { doc ->
+                        sanitizeTaskNumber(doc.get("taskNumber"))
+                    }.maxOrNull() ?: 0
+                    Log.i(tag, "[Firestore Diagnostics] Tasks query bootstrap success. maxFound: $bootstrapBaseline")
+                } catch (e: Exception) {
+                    Log.e(tag, "[Firestore Diagnostics] Tasks query bootstrap error: ${e.message}", e)
+                    throw Exception("[Tasks query permission error]: ${e.message}")
+                }
             }
 
             val newTaskRef = db.collection("Tasks").document()
