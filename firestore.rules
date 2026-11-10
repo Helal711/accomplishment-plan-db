@@ -2,26 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // ---------------------------------------------------------
+    // Core Authentication & Ownership Functions
+    // ---------------------------------------------------------
+
+    // User is signed in via Firebase Authentication
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
 
+    // Existing document belongs to the authenticated user
     function isDocOwner() {
       return isSignedIn() && resource != null && resource.data.ownerUid == request.auth.uid;
     }
 
+    // Incoming document payload is stamped with the authenticated user's UID
     function isCreateOwner() {
       return isSignedIn() &&
              'ownerUid' in request.resource.data &&
              request.resource.data.ownerUid == request.auth.uid;
     }
 
-    // Allows authenticated owner to get document, and returns clean exists() == false if doc does not exist
+    // Allows authenticated user to read if document belongs to them OR if document does not exist yet.
+    // Crucial for pre-flight getDoc() checks (e.g. Month_Counters) so non-existent doc lookups return cleanly.
     function canReadDoc() {
       return isSignedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
     }
 
+    // Shorthand helpers
     function incoming() {
       return request.resource.data;
     }
@@ -30,11 +38,16 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Schema Validation Helpers
+    // ---------------------------------------------------------
+    // Schema Validation Helpers (Compatible with Web & Android)
+    // ---------------------------------------------------------
+
+    // Validate Task document fields
+    // Accommodates amount as string (e.g. '13,000') or number (e.g. 13000)
     function isValidTask(data) {
       return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
-             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
-             (!('amount' in data) || (data.amount is string && data.amount.size() <= 50)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+             (!('amount' in data) || (data.amount is string && data.amount.size() <= 100) || data.amount is number) &&
              (!('taskNumber' in data) || data.taskNumber is number) &&
              (!('paymentMode' in data) || data.paymentMode is string) &&
              (!('unit' in data) || data.unit is string) &&
@@ -44,21 +57,22 @@ service cloud.firestore {
              (!('accountName' in data) || data.accountName is string) &&
              (!('accountCode' in data) || data.accountCode is string) &&
              (!('category' in data) || data.category is string) &&
-             (!('remarks' in data) || (data.remarks is string && data.remarks.size() <= 2000)) &&
-             (!('monthYear' in data) || data.monthYear is string) &&
+             (!('remarks' in data) || (data.remarks is string && data.remarks.size() <= 5000)) &&
+             (!('monthYear' in data) || (data.monthYear is string && data.monthYear.size() <= 50)) &&
              (!('supp1Uploaded' in data) || data.supp1Uploaded is bool) &&
              (!('supp2Uploaded' in data) || data.supp2Uploaded is bool) &&
              (!('supp3Uploaded' in data) || data.supp3Uploaded is bool) &&
              (!('supp1FileUrl' in data) || data.supp1FileUrl is string) &&
              (!('supp2FileUrl' in data) || data.supp2FileUrl is string) &&
              (!('supp3FileUrl' in data) || data.supp3FileUrl is string) &&
-             (!('supp1FileName' in data) || (data.supp1FileName is string && data.supp1FileName.size() <= 200)) &&
-             (!('supp2FileName' in data) || (data.supp2FileName is string && data.supp2FileName.size() <= 200)) &&
-             (!('supp3FileName' in data) || (data.supp3FileName is string && data.supp3FileName.size() <= 200)) &&
+             (!('supp1FileName' in data) || (data.supp1FileName is string && data.supp1FileName.size() <= 255)) &&
+             (!('supp2FileName' in data) || (data.supp2FileName is string && data.supp2FileName.size() <= 255)) &&
+             (!('supp3FileName' in data) || (data.supp3FileName is string && data.supp3FileName.size() <= 255)) &&
              (!('createdAt' in data) || data.createdAt is timestamp) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
+    // Validate Account document fields
     function isValidAccount(data) {
       return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('accountName' in data) || (data.accountName is string && data.accountName.size() <= 200)) &&
@@ -66,6 +80,7 @@ service cloud.firestore {
              (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
+    // Validate Status document fields
     function isValidStatus(data) {
       return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('statusName' in data) || (data.statusName is string && data.statusName.size() <= 100)) &&
@@ -73,6 +88,7 @@ service cloud.firestore {
              (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
+    // Validate Category document fields
     function isValidCategory(data) {
       return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('categoryName' in data) || (data.categoryName is string && data.categoryName.size() <= 100)) &&
@@ -80,6 +96,7 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
+    // Validate Month Counter document fields
     function isValidMonthCounter(data) {
       return (data.ownerUid is string && data.ownerUid == request.auth.uid) &&
              (!('monthYear' in data) || (data.monthYear is string && data.monthYear.size() <= 50)) &&
@@ -87,12 +104,16 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
-    // Default deny all undefined paths
+    // ---------------------------------------------------------
+    // Default Deny Rule
+    // ---------------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Tasks Collection
+    // ---------------------------------------------------------
+    // 1. Tasks Collection
+    // ---------------------------------------------------------
     match /Tasks/{taskId} {
       allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
@@ -103,7 +124,9 @@ service cloud.firestore {
       allow delete: if isDocOwner();
     }
 
-    // Account List Collection
+    // ---------------------------------------------------------
+    // 2. Account_List Collection
+    // ---------------------------------------------------------
     match /Account_List/{accountId} {
       allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
@@ -114,7 +137,9 @@ service cloud.firestore {
       allow delete: if isDocOwner();
     }
 
-    // Status List Collection
+    // ---------------------------------------------------------
+    // 3. Status_List Collection
+    // ---------------------------------------------------------
     match /Status_List/{statusId} {
       allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
@@ -125,7 +150,9 @@ service cloud.firestore {
       allow delete: if isDocOwner();
     }
 
-    // Category List Collection
+    // ---------------------------------------------------------
+    // 4. Category_List Collection
+    // ---------------------------------------------------------
     match /Category_List/{categoryId} {
       allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
@@ -136,7 +163,9 @@ service cloud.firestore {
       allow delete: if isDocOwner();
     }
 
-    // Month Counters Collection (Concurrency-safe per-user per-month task counters)
+    // ---------------------------------------------------------
+    // 5. Month_Counters Collection (Sequential Task Counter)
+    // ---------------------------------------------------------
     match /Month_Counters/{counterId} {
       allow get: if canReadDoc();
       allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
@@ -146,5 +175,6 @@ service cloud.firestore {
                        isValidMonthCounter(incoming());
       allow delete: if isDocOwner();
     }
+
   }
 }
