@@ -400,6 +400,32 @@ class TaskRepository(
             ).await()
             Result.success(docRef.id)
         } catch (e: Exception) {
+            Log.e(tag, "Failed to add account: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateAccount(accountId: String, name: String, code: String): Result<Unit> {
+        return try {
+            db.collection("Account_List").document(accountId).update(
+                mapOf(
+                    "accountName" to name,
+                    "accountCode" to code
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to update account: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteAccount(accountId: String): Result<Unit> {
+        return try {
+            db.collection("Account_List").document(accountId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to delete account: ${e.message}", e)
             Result.failure(e)
         }
     }

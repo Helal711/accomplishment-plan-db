@@ -324,6 +324,51 @@ class TaskViewModel(
         }
     }
 
+        fun addAccount(name: String, code: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val trimmedName = name.trim()
+            val trimmedCode = code.trim()
+            if (trimmedName.isBlank() || trimmedCode.isBlank()) {
+                onResult(false, "Account name and code cannot be empty")
+                return@launch
+            }
+            val res = repository.addAccount(trimmedName, trimmedCode)
+            if (res.isSuccess) {
+                onResult(true, null)
+            } else {
+                onResult(false, res.exceptionOrNull()?.message ?: "Failed to add account")
+            }
+        }
+    }
+
+    fun updateAccount(id: String, name: String, code: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val trimmedName = name.trim()
+            val trimmedCode = code.trim()
+            if (trimmedName.isBlank() || trimmedCode.isBlank()) {
+                onResult(false, "Account name and code cannot be empty")
+                return@launch
+            }
+            val res = repository.updateAccount(id, trimmedName, trimmedCode)
+            if (res.isSuccess) {
+                onResult(true, null)
+            } else {
+                onResult(false, res.exceptionOrNull()?.message ?: "Failed to update account")
+            }
+        }
+    }
+
+    fun deleteAccount(id: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = repository.deleteAccount(id)
+            if (res.isSuccess) {
+                onResult(true, null)
+            } else {
+                onResult(false, res.exceptionOrNull()?.message ?: "Failed to delete account")
+            }
+        }
+    }
+
     fun signOut(context: Context) {
         signOutUser(context, onSignedOut = {
             _currentUser.value = null

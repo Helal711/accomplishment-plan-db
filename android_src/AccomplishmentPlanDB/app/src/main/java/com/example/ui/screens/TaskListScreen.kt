@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.Folder
 import com.example.ui.components.CategoryManagerDialog
+import androidx.compose.material.icons.filled.Book
+import com.example.ui.components.AccountManagerDialog
 import com.example.ui.components.ExportDialog
 import com.example.ui.components.MonthSelectorDialog
 import com.example.ui.components.StatusManagerDialog
@@ -88,6 +90,8 @@ fun TaskListScreen(
     val isSearchOpen by viewModel.isSearchOpen.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val categories by viewModel.categories.collectAsState(initial = emptyList())
+    val userAccounts by viewModel.accounts.collectAsState(initial = emptyList())
+    val customStatuses by viewModel.customStatuses.collectAsState(initial = emptyList())
 
     val statusCounts = remember(tasks, availableStatuses) {
         availableStatuses.map { st ->
@@ -97,7 +101,8 @@ fun TaskListScreen(
 
     var showMonthDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
-    var showStatusDialog by remember { mutableStateOf(false) }
+        var showAccountDialog by remember { mutableStateOf(false) }
+var showStatusDialog by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
     var taskToDelete by remember { mutableStateOf<TaskItem?>(null) }
@@ -151,10 +156,15 @@ fun TaskListScreen(
                                                 color = Color(0xFF6B7280)
                                             )
                                             Text(
-                                                text = user.email ?: user.uid.take(12),
+                                                text = user.email ?: "Signed in user",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Color(0xFF111827)
+                                            )
+                                            Text(
+                                                text = "UID: " + user.uid.take(16) + "...",
+                                                fontSize = 10.5.sp,
+                                                color = Color(0xFF9CA3AF)
                                             )
                                         }
                                     },
@@ -164,9 +174,19 @@ fun TaskListScreen(
                             }
 
                             DropdownMenuItem(
+                                text = { Text("Master Account List", fontSize = 13.5.sp) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Book, contentDescription = null, tint = AppPrimaryBlue, modifier = Modifier.size(18.dp))
+                                },
+                                onClick = {
+                                    showSettingsMenu = false
+                                    showAccountDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Category Management", fontSize = 13.5.sp) },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Folder, contentDescription = null, tint = AppPrimaryBlue, modifier = Modifier.size(18.dp))
                                 },
                                 onClick = {
                                     showSettingsMenu = false
@@ -462,9 +482,18 @@ fun TaskListScreen(
         )
     }
 
+    if (showAccountDialog) {
+        AccountManagerDialog(
+            accounts = userAccounts,
+            onAddAccount = { name, code, cb -> viewModel.addAccount(name, code, cb) },
+            onUpdateAccount = { id, name, code, cb -> viewModel.updateAccount(id, name, code, cb) },
+            onDeleteAccount = { id, cb -> viewModel.deleteAccount(id, cb) },
+            onDismissRequest = { showAccountDialog = false }
+        )
+    }
     if (showStatusDialog) {
         StatusManagerDialog(
-            availableStatuses = availableStatuses,
+            customStatuses = customStatuses,
             onAddStatus = { viewModel.addCustomStatus(it) },
             onRemoveStatus = { viewModel.removeCustomStatus(it) },
             onDismissRequest = { showStatusDialog = false }
