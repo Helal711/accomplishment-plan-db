@@ -14,6 +14,48 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { getStatusColor } from '../utils/statusColors';
 
+export interface StatusSummaryButtonAppearance {
+  hasTasks: boolean;
+  backgroundColor: string;
+  textColor: string;
+  borderColor: string;
+  boxShadow?: string;
+  dotColor: string;
+  badgeBackgroundColor: string;
+  badgeTextColor: string;
+}
+
+export function getStatusSummaryButtonAppearance(
+  statusName: string,
+  count: number,
+  isActive: boolean
+): StatusSummaryButtonAppearance {
+  if (count <= 0) {
+    return {
+      hasTasks: false,
+      backgroundColor: '#FFFFFF',
+      textColor: '#111827',
+      borderColor: isActive ? '#111827' : '#D1D5DB',
+      boxShadow: isActive ? '0 0 0 1.5px #111827' : undefined,
+      dotColor: '#9CA3AF',
+      badgeBackgroundColor: isActive ? '#111827' : '#F3F4F6',
+      badgeTextColor: isActive ? '#FFFFFF' : '#111827',
+    };
+  }
+
+  const colors = getStatusColor(statusName);
+  return {
+    hasTasks: true,
+    backgroundColor: colors.bg,
+    textColor: colors.text,
+    borderColor: isActive ? colors.dot : colors.border,
+    boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
+    dotColor: colors.dot,
+    badgeBackgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
+    badgeTextColor: isActive ? '#FFFFFF' : colors.text,
+  };
+}
+
 interface AppHeaderProps {
   selectedMonth: string;
   totalCount: number;
@@ -240,10 +282,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
           {statusCounts.length > 0 ? (
             statusCounts.map((st, idx) => {
-              const colors = getStatusColor(st.name);
               const isActive =
                 !!selectedStatus &&
                 selectedStatus.trim().toLowerCase() === st.name.trim().toLowerCase();
+              const appearance = getStatusSummaryButtonAppearance(st.name, st.count, isActive);
 
               return (
                 <button
@@ -253,10 +295,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   onClick={() => onSelectStatus?.(isActive ? null : st.name)}
                   aria-pressed={isActive}
                   style={{
-                    backgroundColor: colors.bg,
-                    color: colors.text,
-                    borderColor: isActive ? colors.dot : colors.border,
-                    boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
+                    backgroundColor: appearance.backgroundColor,
+                    color: appearance.textColor,
+                    borderColor: appearance.borderColor,
+                    boxShadow: appearance.boxShadow,
                   }}
                   className={`relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97] ${
                     isActive ? 'shadow-sm' : ''
@@ -265,14 +307,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
                     className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: colors.dot }}
+                    style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
                   <span className="truncate max-w-[100px] sm:max-w-[210px]">{st.name}:</span>
                   <span
                     style={{
-                      backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
-                      color: isActive ? '#FFFFFF' : colors.text,
+                      backgroundColor: appearance.badgeBackgroundColor,
+                      color: appearance.badgeTextColor,
                     }}
                     className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0"
                   >
@@ -283,8 +325,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             })
           ) : (
             (() => {
-              const colors = getStatusColor('Pending');
               const isActive = selectedStatus?.trim().toLowerCase() === 'pending';
+              const appearance = getStatusSummaryButtonAppearance('Pending', pendingCount, isActive);
               return (
                 <button
                   type="button"
@@ -292,24 +334,24 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   onClick={() => onSelectStatus?.(isActive ? null : 'Pending')}
                   aria-pressed={isActive}
                   style={{
-                    backgroundColor: colors.bg,
-                    color: colors.text,
-                    borderColor: isActive ? colors.dot : colors.border,
-                    boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
+                    backgroundColor: appearance.backgroundColor,
+                    color: appearance.textColor,
+                    borderColor: appearance.borderColor,
+                    boxShadow: appearance.boxShadow,
                   }}
                   className="relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97]"
                 >
                   <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
                     className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: colors.dot }}
+                    style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
                   <span>Pending:</span>
                   <span
                     style={{
-                      backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
-                      color: isActive ? '#FFFFFF' : colors.text,
+                      backgroundColor: appearance.badgeBackgroundColor,
+                      color: appearance.badgeTextColor,
                     }}
                     className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0"
                   >
