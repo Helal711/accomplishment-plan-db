@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Accomplishment Plan DB</string>
+    <string name="loading_message">Loading Accomplishment Plan DB…</string>
+    <string name="error_title_offline">No Internet Connection</string>
+    <string name="error_title_load">Unable to Load Page</string>
+    <string name="error_subtitle_offline">Please check your Wi-Fi or mobile data connection and try again.</string>
+    <string name="action_retry">Try Again</string>
+    <string name="exit_dialog_title">Exit App?</string>
+    <string name="exit_dialog_message">Are you sure you want to close Accomplishment Plan DB?</string>
+    <string name="action_stay">Stay</string>
+    <string name="action_exit">Exit</string>
+    <string name="chooser_dialog_title">Select Upload Source</string>
+    <string name="chooser_from_storage">Choose File or Photo</string>
+    <string name="chooser_take_photo">Take Photo with Camera</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="camera_permission_denied">Camera permission is needed to take a photo. You can still choose a file from device storage.</string>
+    <string name="download_saved">Saved %1$s</string>
+    <string name="download_failed">Failed to save %1$s</string>
+    <string name="action_open">Open</string>
+    <string name="no_app_to_open">No installed app can open %1$s</string>
+    <string name="google_signin_window_title">Google Sign-In</string>
+    <string name="cd_close_popup">Close sign-in window</string>
+    <string name="cd_app_logo">Accomplishment Plan DB logo</string>
+    <string name="cd_error_icon">Connection error icon</string>
+</resources>
