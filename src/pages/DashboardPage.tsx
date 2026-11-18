@@ -368,7 +368,7 @@ export const DashboardPage: React.FC = () => {
       <ExportModal
         isOpen={showExportModal}
         currentMonth={selectedMonth}
-        tasks={tasks}
+        tasks={filteredTasks}
         onClose={() => setShowExportModal(false)}
       />
 
