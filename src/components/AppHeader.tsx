@@ -19,6 +19,8 @@ interface AppHeaderProps {
   totalCount: number;
   pendingCount: number;
   statusCounts?: { name: string; count: number }[];
+  selectedStatus?: string | null;
+  onSelectStatus?: (status: string | null) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onOpenMonthSelector: () => void;
@@ -33,6 +35,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   totalCount,
   pendingCount,
   statusCounts = [],
+  selectedStatus = null,
+  onSelectStatus,
   searchQuery,
   onSearchChange,
   onOpenMonthSelector,
@@ -186,7 +190,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search by description, unit, status, account, remarks..."
+              placeholder="Search description, amount, payment mode, account, status, category, remarks..."
               autoFocus
               className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
             />
@@ -203,43 +207,111 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       )}
 
-      {/* Subheader Count Bar: Fully visible responsive summary (no horizontal scrolling) */}
-      <div className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+      {/* Subheader Count Bar: Clickable status filter buttons (responsive wrap, no horizontal scrolling) */}
+      <div className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
         <div
           data-testid="status-summary-bar"
-          className="max-w-4xl mx-auto px-3 sm:px-4 py-1.5 flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1 text-[11px] sm:text-xs text-[#374151]"
+          className="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 flex flex-wrap items-center gap-2 sm:gap-2.5"
         >
-          <span className="inline-flex items-center font-medium">
-            Total Items:&nbsp;<strong className="text-app-primary font-bold">{totalCount}</strong>
-          </span>
+          {/* Total Items Button (Neutral Blue Theme) */}
+          <button
+            type="button"
+            onClick={() => onSelectStatus?.(null)}
+            aria-pressed={selectedStatus === null}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+              selectedStatus === null
+                ? 'bg-app-primary text-white border-app-primary shadow-sm ring-2 ring-blue-200'
+                : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100/80'
+            }`}
+          >
+            <span>Total Items:</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold leading-none ${
+                selectedStatus === null
+                  ? 'bg-white/20 text-white'
+                  : 'bg-white text-blue-900 border border-blue-200'
+              }`}
+            >
+              {totalCount}
+            </span>
+          </button>
+
           {statusCounts.length > 0 ? (
             statusCounts.map((st, idx) => {
-              const dotColor = getStatusColor(st.name).dot;
+              const colors = getStatusColor(st.name);
+              const isActive =
+                !!selectedStatus &&
+                selectedStatus.trim().toLowerCase() === st.name.trim().toLowerCase();
+
               return (
-                <span
+                <button
                   key={st.name || idx}
-                  className="inline-flex items-center gap-1"
+                  type="button"
+                  onClick={() => onSelectStatus?.(isActive ? null : st.name)}
+                  aria-pressed={isActive}
+                  style={{
+                    backgroundColor: colors.bg,
+                    color: colors.text,
+                    borderColor: isActive ? colors.dot : colors.border,
+                    boxShadow: isActive ? `0 0 0 2px ${colors.dot}` : undefined,
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer hover:brightness-[0.97] ${
+                    isActive ? 'shadow-sm' : ''
+                  }`}
                 >
                   <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: dotColor }}
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: colors.dot }}
                     aria-hidden="true"
                   />
                   <span>{st.name}:</span>
-                  <strong className="text-gray-900 font-bold">{st.count}</strong>
-                </span>
+                  <span
+                    style={{
+                      backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
+                      color: isActive ? '#FFFFFF' : colors.text,
+                    }}
+                    className="px-1.5 py-0.5 rounded-md text-[11px] font-bold leading-none"
+                  >
+                    {st.count}
+                  </span>
+                </button>
               );
             })
           ) : (
-            <span className="inline-flex items-center gap-1">
-              <span
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: getStatusColor('Pending').dot }}
-                aria-hidden="true"
-              />
-              <span>Pending:</span>
-              <strong className="text-gray-900 font-bold">{pendingCount}</strong>
-            </span>
+            (() => {
+              const colors = getStatusColor('Pending');
+              const isActive = selectedStatus?.trim().toLowerCase() === 'pending';
+              return (
+                <button
+                  type="button"
+                  onClick={() => onSelectStatus?.(isActive ? null : 'Pending')}
+                  aria-pressed={isActive}
+                  style={{
+                    backgroundColor: colors.bg,
+                    color: colors.text,
+                    borderColor: isActive ? colors.dot : colors.border,
+                    boxShadow: isActive ? `0 0 0 2px ${colors.dot}` : undefined,
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer hover:brightness-[0.97]"
+                >
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: colors.dot }}
+                    aria-hidden="true"
+                  />
+                  <span>Pending:</span>
+                  <span
+                    style={{
+                      backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
+                      color: isActive ? '#FFFFFF' : colors.text,
+                    }}
+                    className="px-1.5 py-0.5 rounded-md text-[11px] font-bold leading-none"
+                  >
+                    {pendingCount}
+                  </span>
+                </button>
+              );
+            })()
           )}
         </div>
       </div>

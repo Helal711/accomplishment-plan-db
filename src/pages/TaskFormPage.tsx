@@ -518,31 +518,43 @@ export const TaskFormPage: React.FC = () => {
                 })()}
               </div>
               <div className="relative">
-                <Tag className="w-4 h-4 text-gray-400 absolute left-3.5 top-3 pointer-events-none" />
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  style={{
-                    borderColor: getStatusColor(status).border,
-                  }}
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent bg-white font-medium"
-                >
-                  {combinedStatusNames.map((st) => {
-                    const optColors = getStatusColor(st);
-                    return (
-                      <option
-                        key={st}
-                        value={st}
+                {(() => {
+                  const activeColors = getStatusColor(status);
+                  return (
+                    <>
+                      <Tag
+                        className="w-4 h-4 absolute left-3.5 top-3 pointer-events-none"
+                        style={{ color: activeColors.dot }}
+                      />
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
                         style={{
-                          backgroundColor: optColors.bg,
-                          color: optColors.text,
+                          backgroundColor: activeColors.bg,
+                          color: activeColors.text,
+                          borderColor: activeColors.border,
                         }}
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent font-semibold transition-colors"
                       >
-                        {st}
-                      </option>
-                    );
-                  })}
-                </select>
+                        {combinedStatusNames.map((st) => {
+                          const optColors = getStatusColor(st);
+                          return (
+                            <option
+                              key={st}
+                              value={st}
+                              style={{
+                                backgroundColor: optColors.bg,
+                                color: optColors.text,
+                              }}
+                            >
+                              {st}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

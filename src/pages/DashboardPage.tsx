@@ -21,7 +21,6 @@ import {
 import { TaskItem, AccountItem, StatusItem, CategoryItem, DEFAULT_STATUSES, DEFAULT_MONTHS } from '../types';
 import { AppHeader } from '../components/AppHeader';
 import { TaskCard } from '../components/TaskCard';
-import { StatusColorCards } from '../components/StatusColorCards';
 import { MonthSelectorModal } from '../components/MonthSelectorModal';
 import { StatusManagerModal } from '../components/StatusManagerModal';
 import { AccountManagerModal } from '../components/AccountManagerModal';
@@ -36,6 +35,7 @@ import {
   getCustomMonthsForUser,
   saveCustomMonthForUser,
 } from '../utils/monthUtils';
+import { filterTasks } from '../utils/taskFilter';
 
 function buildAvailableMonths(uid: string | undefined | null, activeMonth: string): string[] {
   const custom = getCustomMonthsForUser(uid);
@@ -69,6 +69,7 @@ export const DashboardPage: React.FC = () => {
   const [statuses, setStatuses] = useState<StatusItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [loadingTasks, setLoadingTasks] = useState<boolean>(true);
 
   // Modals state
@@ -87,6 +88,7 @@ export const DashboardPage: React.FC = () => {
       setStatuses([]);
       setCategories([]);
       setSearchQuery('');
+      setSelectedStatus(null);
       setLoadingTasks(false);
       const fallbackMonth = getCurrentMonthYear();
       setSelectedMonth(fallbackMonth);
@@ -96,6 +98,7 @@ export const DashboardPage: React.FC = () => {
 
     const restoredMonth = getSavedMonthForUser(currentUser.uid);
     setSelectedMonth(restoredMonth);
+    setSelectedStatus(null);
     setAvailableMonths(buildAvailableMonths(currentUser.uid, restoredMonth));
   }, [currentUser?.uid]);
 
@@ -162,23 +165,10 @@ export const DashboardPage: React.FC = () => {
     return combined;
   }, [statuses]);
 
-  // Filter tasks by search query
+  // Filter tasks by both status filter and multi-field search query
   const filteredTasks = useMemo(() => {
-    if (!searchQuery.trim()) return tasks;
-    const q = searchQuery.toLowerCase().trim();
-    return tasks.filter((t) => {
-      return (
-        t.description.toLowerCase().includes(q) ||
-        t.unit.toLowerCase().includes(q) ||
-        t.status.toLowerCase().includes(q) ||
-        t.accountName.toLowerCase().includes(q) ||
-        t.accountCode.toLowerCase().includes(q) ||
-        (t.category || '').toLowerCase().includes(q) ||
-        t.remarks.toLowerCase().includes(q) ||
-        t.taskNumber.toString().includes(q)
-      );
-    });
-  }, [tasks, searchQuery]);
+    return filterTasks(tasks, searchQuery, selectedStatus, selectedMonth);
+  }, [tasks, searchQuery, selectedStatus, selectedMonth]);
 
   const totalCount = tasks.length;
   const pendingCount = tasks.filter((t) => (t.status || '').toLowerCase() !== 'done').length;
@@ -213,6 +203,7 @@ export const DashboardPage: React.FC = () => {
 
   const handleSelectMonth = (month: string) => {
     setSelectedMonth(month);
+    setSelectedStatus(null);
     saveMonthForUser(currentUser?.uid, month);
     setAvailableMonths((prev) => {
       if (prev.some((m) => m.toLowerCase() === month.toLowerCase())) return prev;
@@ -234,6 +225,8 @@ export const DashboardPage: React.FC = () => {
           totalCount={totalCount}
           pendingCount={pendingCount}
           statusCounts={statusCounts}
+          selectedStatus={selectedStatus}
+          onSelectStatus={setSelectedStatus}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenMonthSelector={() => setShowMonthModal(true)}
@@ -245,8 +238,6 @@ export const DashboardPage: React.FC = () => {
 
         {/* Content Container with bottom padding for fixed footer & FAB */}
         <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 pb-28">
-          <StatusColorCards />
-
           {loadingTasks ? (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-3 border-app-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -258,14 +249,27 @@ export const DashboardPage: React.FC = () => {
                 <Inbox className="w-6 h-6" />
               </div>
               <h3 className="text-base font-semibold text-gray-800">
-                {searchQuery ? 'No matching tasks found' : `No tasks found for ${selectedMonth}`}
+                {searchQuery.trim() || selectedStatus
+                  ? 'No matching tasks found'
+                  : `No tasks found for ${selectedMonth}`}
               </h3>
               <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                {searchQuery
-                  ? 'Try adjusting your search terms.'
+                {searchQuery.trim() || selectedStatus
+                  ? 'Try clearing the active status filter or adjusting your search terms.'
                   : 'Get started by creating a new task using the blue "+" button.'}
               </p>
-              {!searchQuery && (
+              {searchQuery.trim() || selectedStatus ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStatus(null);
+                    setSearchQuery('');
+                  }}
+                  className="mt-4 inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-app-primary text-xs font-semibold rounded-lg border border-blue-200 transition-colors"
+                >
+                  <span>Show All Tasks</span>
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={() => navigate('/tasks/new', { state: { month: selectedMonth } })}

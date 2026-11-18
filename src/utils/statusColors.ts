@@ -6,27 +6,63 @@ export interface StatusColorStyle {
   dot: string;
 }
 
-export const STANDARD_STATUS_CARDS = [
-  'Done',
-  'WO Done',
-  'Pending',
-  'In Progress',
-  'Cancelled',
-  'Draft Ready',
-  'Advance Ready',
-  'Hold from MR Team',
-] as const;
+/**
+ * Palette of high-contrast, light-tinted accessible colors for custom statuses.
+ * Assigned deterministically based on normalized status name so every custom status
+ * receives a consistent, visually distinct color everywhere in the app.
+ */
+const CUSTOM_STATUS_PALETTE: StatusColorStyle[] = [
+  // Indigo
+  { bg: '#E0E7FF', text: '#3730A3', border: '#A5B4FC', accent: '#4F46E5', dot: '#4F46E5' },
+  // Sky
+  { bg: '#E0F2FE', text: '#075985', border: '#7DD3FC', accent: '#0284C7', dot: '#0284C7' },
+  // Rose
+  { bg: '#FCE7F3', text: '#9D174D', border: '#F9A8D4', accent: '#DB2777', dot: '#DB2777' },
+  // Lime
+  { bg: '#ECFCCB', text: '#3F6212', border: '#BEF264', accent: '#65A30D', dot: '#65A30D' },
+  // Fuchsia
+  { bg: '#FAE8FF', text: '#86198F', border: '#F0ABFC', accent: '#C026D3', dot: '#C026D3' },
+  // Cyan
+  { bg: '#CFFAFE', text: '#155E75', border: '#67E8F9', accent: '#0891B2', dot: '#0891B2' },
+  // Emerald
+  { bg: '#D1FAE5', text: '#065F46', border: '#6EE7B7', accent: '#059669', dot: '#059669' },
+  // Violet
+  { bg: '#EDE9FE', text: '#5B21B6', border: '#C4B5FD', accent: '#7C3AED', dot: '#7C3AED' },
+  // Coral / Warm Rose
+  { bg: '#FFE4E6', text: '#9F1239', border: '#FDA4AF', accent: '#E11D48', dot: '#E11D48' },
+  // Warm Yellow
+  { bg: '#FEF9C3', text: '#854D0E', border: '#FDE047', accent: '#CA8A04', dot: '#CA8A04' },
+];
+
+function hashStatusName(normalized: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < normalized.length; i++) {
+    hash ^= normalized.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
 
 /**
  * Single reusable status color mapping used consistently across:
- * - Compact Status Color Cards
- * - Task Card Status Badges
- * - Status Dropdown Options
- * - Status Summary Bar indicators
- * - Dynamic Status Settings
+ * - Top Status Summary filter buttons
+ * - Task Card status badges
+ * - Quick status update dropdown
+ * - Task Status dropdown options
+ * - Dynamic Status Settings modal
  */
 export function getStatusColor(status: string): StatusColorStyle {
   const s = (status || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+  if (!s) {
+    return {
+      bg: '#F1F5F9',
+      text: '#334155',
+      border: '#CBD5E1',
+      accent: '#64748B',
+      dot: '#64748B',
+    };
+  }
 
   // Done -> Green
   if (s === 'done') {
@@ -116,12 +152,28 @@ export function getStatusColor(status: string): StatusColorStyle {
     };
   }
 
-  // Custom / fallback status -> Neutral Grey
-  return {
-    bg: '#F3F4F6',
-    text: '#4B5563',
-    border: '#D1D5DB',
-    accent: '#9CA3AF',
-    dot: '#9CA3AF',
-  };
+  // Semantic aliases for related workflow statuses
+  if (s.startsWith('cancel')) {
+    return {
+      bg: '#FEE2E2',
+      text: '#991B1B',
+      border: '#FCA5A5',
+      accent: '#DC2626',
+      dot: '#DC2626',
+    };
+  }
+
+  if (s.startsWith('hold')) {
+    return {
+      bg: '#FEF3C7',
+      text: '#92400E',
+      border: '#FCD34D',
+      accent: '#D97706',
+      dot: '#D97706',
+    };
+  }
+
+  // Deterministic color assignment for all custom statuses
+  const paletteIdx = hashStatusName(s) % CUSTOM_STATUS_PALETTE.length;
+  return CUSTOM_STATUS_PALETTE[paletteIdx];
 }
