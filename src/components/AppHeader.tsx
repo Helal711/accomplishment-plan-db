@@ -216,17 +216,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {/* Total Items Button (Neutral Blue Theme) */}
           <button
             type="button"
+            title={`Total Items: ${totalCount}`}
             onClick={() => onSelectStatus?.(null)}
             aria-pressed={selectedStatus === null}
-            className={`inline-flex items-center gap-[3px] sm:gap-1 px-1.5 sm:px-2.5 py-[2px] sm:py-[5px] min-h-[22px] sm:min-h-[30px] max-w-full rounded-full text-[10.5px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer ${
+            className={`relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer ${
               selectedStatus === null
                 ? 'bg-app-primary text-white border-app-primary shadow-sm ring-1 sm:ring-2 ring-blue-200'
                 : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100/80'
             }`}
           >
+            <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
             <span>Total Items:</span>
             <span
-              className={`px-1 sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[9.5px] sm:text-[11px] font-bold leading-none ${
+              className={`px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none ${
                 selectedStatus === null
                   ? 'bg-white/20 text-white'
                   : 'bg-white text-blue-900 border border-blue-200'
@@ -256,22 +258,23 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     borderColor: isActive ? colors.dot : colors.border,
                     boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
                   }}
-                  className={`inline-flex items-center gap-[3px] sm:gap-1 px-1.5 sm:px-2.5 py-[2px] sm:py-[5px] min-h-[22px] sm:min-h-[30px] max-w-full rounded-full text-[10.5px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97] ${
+                  className={`relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97] ${
                     isActive ? 'shadow-sm' : ''
                   }`}
                 >
+                  <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
-                    className="w-[5px] h-[5px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
+                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: colors.dot }}
                     aria-hidden="true"
                   />
-                  <span className="truncate max-w-[115px] sm:max-w-[210px]">{st.name}:</span>
+                  <span className="truncate max-w-[100px] sm:max-w-[210px]">{st.name}:</span>
                   <span
                     style={{
                       backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
                       color: isActive ? '#FFFFFF' : colors.text,
                     }}
-                    className="px-1 sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[9.5px] sm:text-[11px] font-bold leading-none flex-shrink-0"
+                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0"
                   >
                     {st.count}
                   </span>
@@ -285,6 +288,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               return (
                 <button
                   type="button"
+                  title={`Pending: ${pendingCount}`}
                   onClick={() => onSelectStatus?.(isActive ? null : 'Pending')}
                   aria-pressed={isActive}
                   style={{
@@ -293,10 +297,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     borderColor: isActive ? colors.dot : colors.border,
                     boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
                   }}
-                  className="inline-flex items-center gap-[3px] sm:gap-1 px-1.5 sm:px-2.5 py-[2px] sm:py-[5px] min-h-[22px] sm:min-h-[30px] max-w-full rounded-full text-[10.5px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97]"
+                  className="relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97]"
                 >
+                  <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
-                    className="w-[5px] h-[5px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
+                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: colors.dot }}
                     aria-hidden="true"
                   />
@@ -306,7 +311,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
                       color: isActive ? '#FFFFFF' : colors.text,
                     }}
-                    className="px-1 sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[9.5px] sm:text-[11px] font-bold leading-none flex-shrink-0"
+                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0"
                   >
                     {pendingCount}
                   </span>
