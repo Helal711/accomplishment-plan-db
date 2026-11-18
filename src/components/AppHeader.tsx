@@ -12,6 +12,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getStatusColor } from '../utils/statusColors';
 
 interface AppHeaderProps {
   selectedMonth: string;
@@ -202,25 +203,43 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       )}
 
-      {/* Subheader Count Bar: Total Items: X | Pending: Y | Done: Z ... */}
+      {/* Subheader Count Bar: Fully visible responsive summary (no horizontal scrolling) */}
       <div className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center overflow-x-auto whitespace-nowrap scrollbar-none text-xs sm:text-[13.5px] text-[#374151]">
-          <span>Total Items:&nbsp;</span>
-          <strong className="text-gray-900 font-bold">{totalCount}</strong>
+        <div
+          data-testid="status-summary-bar"
+          className="max-w-4xl mx-auto px-3 sm:px-4 py-1.5 flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1 text-[11px] sm:text-xs text-[#374151]"
+        >
+          <span className="inline-flex items-center font-medium">
+            Total Items:&nbsp;<strong className="text-app-primary font-bold">{totalCount}</strong>
+          </span>
           {statusCounts.length > 0 ? (
-            statusCounts.map((st, idx) => (
-              <React.Fragment key={st.name || idx}>
-                <span className="text-gray-300 mx-2 sm:mx-3">|</span>
-                <span>{st.name}:&nbsp;</span>
-                <strong className="text-gray-900 font-bold">{st.count}</strong>
-              </React.Fragment>
-            ))
+            statusCounts.map((st, idx) => {
+              const dotColor = getStatusColor(st.name).dot;
+              return (
+                <span
+                  key={st.name || idx}
+                  className="inline-flex items-center gap-1"
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: dotColor }}
+                    aria-hidden="true"
+                  />
+                  <span>{st.name}:</span>
+                  <strong className="text-gray-900 font-bold">{st.count}</strong>
+                </span>
+              );
+            })
           ) : (
-            <>
-              <span className="text-gray-300 mx-2 sm:mx-3">|</span>
-              <span>Pending:&nbsp;</span>
+            <span className="inline-flex items-center gap-1">
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: getStatusColor('Pending').dot }}
+                aria-hidden="true"
+              />
+              <span>Pending:</span>
               <strong className="text-gray-900 font-bold">{pendingCount}</strong>
-            </>
+            </span>
           )}
         </div>
       </div>

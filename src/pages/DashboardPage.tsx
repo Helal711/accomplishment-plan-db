@@ -21,6 +21,7 @@ import {
 import { TaskItem, AccountItem, StatusItem, CategoryItem, DEFAULT_STATUSES, DEFAULT_MONTHS } from '../types';
 import { AppHeader } from '../components/AppHeader';
 import { TaskCard } from '../components/TaskCard';
+import { StatusColorCards } from '../components/StatusColorCards';
 import { MonthSelectorModal } from '../components/MonthSelectorModal';
 import { StatusManagerModal } from '../components/StatusManagerModal';
 import { AccountManagerModal } from '../components/AccountManagerModal';
@@ -28,13 +29,41 @@ import { CategoryManagerModal } from '../components/CategoryManagerModal';
 import { ExportModal } from '../components/ExportModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DeveloperFooter } from '../components/DeveloperFooter';
+import {
+  getCurrentMonthYear,
+  getSavedMonthForUser,
+  saveMonthForUser,
+  getCustomMonthsForUser,
+  saveCustomMonthForUser,
+} from '../utils/monthUtils';
+
+function buildAvailableMonths(uid: string | undefined | null, activeMonth: string): string[] {
+  const custom = getCustomMonthsForUser(uid);
+  const current = getCurrentMonthYear();
+  const seen = new Set<string>();
+  const list: string[] = [];
+  for (const m of [activeMonth, current, ...DEFAULT_MONTHS, ...custom]) {
+    const trimmed = (m || '').trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      list.push(trimmed);
+    }
+  }
+  return list;
+}
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const [selectedMonth, setSelectedMonth] = useState<string>('Nov-2026');
-  const [availableMonths, setAvailableMonths] = useState<string[]>(DEFAULT_MONTHS);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() =>
+    getSavedMonthForUser(currentUser?.uid)
+  );
+  const [availableMonths, setAvailableMonths] = useState<string[]>(() =>
+    buildAvailableMonths(currentUser?.uid, getSavedMonthForUser(currentUser?.uid))
+  );
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [statuses, setStatuses] = useState<StatusItem[]>([]);
@@ -50,7 +79,7 @@ export const DashboardPage: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
 
-  // Reset user data when logged out or switched
+  // Restore user-scoped month preference or reset when logged out/switched
   useEffect(() => {
     if (!currentUser) {
       setTasks([]);
@@ -59,8 +88,16 @@ export const DashboardPage: React.FC = () => {
       setCategories([]);
       setSearchQuery('');
       setLoadingTasks(false);
+      const fallbackMonth = getCurrentMonthYear();
+      setSelectedMonth(fallbackMonth);
+      setAvailableMonths(buildAvailableMonths(null, fallbackMonth));
+      return;
     }
-  }, [currentUser]);
+
+    const restoredMonth = getSavedMonthForUser(currentUser.uid);
+    setSelectedMonth(restoredMonth);
+    setAvailableMonths(buildAvailableMonths(currentUser.uid, restoredMonth));
+  }, [currentUser?.uid]);
 
   // Subscribe to tasks for current user and month
   useEffect(() => {
@@ -108,10 +145,20 @@ export const DashboardPage: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Combined status names
+  // Combined status names (preserving order, case-insensitive deduplication)
   const availableStatusNames = useMemo(() => {
     const custom = statuses.map((s) => s.statusName);
-    const combined = Array.from(new Set([...DEFAULT_STATUSES, ...custom]));
+    const seen = new Set<string>();
+    const combined: string[] = [];
+    for (const st of [...DEFAULT_STATUSES, 'Hold from MR Team', ...custom]) {
+      const trimmed = (st || '').trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push(trimmed);
+      }
+    }
     return combined;
   }, [statuses]);
 
@@ -164,11 +211,18 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleSelectMonth = (month: string) => {
+    setSelectedMonth(month);
+    saveMonthForUser(currentUser?.uid, month);
+    setAvailableMonths((prev) => {
+      if (prev.some((m) => m.toLowerCase() === month.toLowerCase())) return prev;
+      return [month, ...prev];
+    });
+  };
+
   const handleAddMonth = (newMonth: string) => {
-    if (!availableMonths.includes(newMonth)) {
-      setAvailableMonths((prev) => [...prev, newMonth]);
-    }
-    setSelectedMonth(newMonth);
+    saveCustomMonthForUser(currentUser?.uid, newMonth);
+    handleSelectMonth(newMonth);
   };
 
   return (
@@ -191,6 +245,8 @@ export const DashboardPage: React.FC = () => {
 
         {/* Content Container with bottom padding for fixed footer & FAB */}
         <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 pb-28">
+          <StatusColorCards />
+
           {loadingTasks ? (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-3 border-app-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -258,7 +314,7 @@ export const DashboardPage: React.FC = () => {
         isOpen={showMonthModal}
         selectedMonth={selectedMonth}
         availableMonths={availableMonths}
-        onSelectMonth={setSelectedMonth}
+        onSelectMonth={handleSelectMonth}
         onAddMonth={handleAddMonth}
         onClose={() => setShowMonthModal(false)}
       />

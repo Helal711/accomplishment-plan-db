@@ -204,216 +204,223 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   const handleExportPDF = () => {
-    const printWindow = window.open('', '_blank', 'width=1000,height=800');
-    if (!printWindow) {
-      alert('Please allow popups to generate the PDF report.');
-      return;
-    }
+    try {
+      const itemsPerPage = 18;
+      const totalPages = Math.max(1, Math.ceil(tasks.length / itemsPerPage));
+      const pageWidth = 842;  // A4 Landscape width in points
+      const pageHeight = 595; // A4 Landscape height in points
 
-    const escapeHtml = (str: string) => {
-      return (str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    };
+      const escapePdf = (str: string) => {
+        if (!str) return '';
+        return str
+          .replace(/\\/g, '\\\\')
+          .replace(/\(/g, '\\(')
+          .replace(/\)/g, '\\)');
+      };
 
-    const rowsHtml = tasks
-      .map(
-        (task, idx) => `
-        <tr>
-          <td style="text-align: center; font-weight: 600;">${idx + 1}</td>
-          <td><strong>${escapeHtml(task.description)}</strong></td>
-          <td style="white-space: nowrap;">${escapeHtml(
-            task.amount
-              ? task.amount.toLowerCase().endsWith('tk')
-                ? task.amount
-                : `${task.amount} TK`
-              : '-'
-          )}</td>
-          <td style="white-space: nowrap;">${escapeHtml(task.paymentMode || '-')}</td>
-          <td style="white-space: nowrap;">${escapeHtml(task.unit || '-')}</td>
-          <td>
-            <span class="priority-${escapeHtml(task.priority)}">
-              ${escapeHtml(task.priority || '-')}
-            </span>
-          </td>
-          <td>
-            <span class="status-badge">
-              ${escapeHtml(task.status || '-')}
-            </span>
-          </td>
-          <td style="white-space: nowrap;">${escapeHtml(task.expectedDate || '-')}</td>
-          <td>
-            <div>${escapeHtml(task.accountName || '-')}</div>
-            <div style="font-size: 8pt; color: #6B7280;">${escapeHtml(task.accountCode || '')}</div>
-          </td>
-          <td style="font-size: 8.5pt; color: #4B5563;">${escapeHtml(task.remarks || '-')}</td>
-        </tr>
-      `
-      )
-      .join('');
+      const fitPdfText = (str: string | undefined | null, maxChars: number) => {
+        const s = (str || '').trim();
+        if (s.length <= maxChars) return s;
+        return s.slice(0, maxChars - 1) + '...';
+      };
 
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Accomplishment Plan Report - ${escapeHtml(currentMonth)}</title>
-  <style>
-    @page {
-      size: A4 landscape;
-      margin: 12mm 10mm;
-    }
-    * {
-      box-sizing: border-box;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      margin: 0;
-      padding: 16px;
-      color: #111827;
-      background: #FFFFFF;
-      font-size: 10pt;
-    }
-    .report-header {
-      border-bottom: 2px solid #1E88E5;
-      padding-bottom: 10px;
-      margin-bottom: 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-    }
-    .report-title h1 {
-      margin: 0 0 4px 0;
-      font-size: 17pt;
-      color: #1E88E5;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-    }
-    .report-title p {
-      margin: 0;
-      font-size: 9.5pt;
-      color: #6B7280;
-    }
-    .report-meta {
-      text-align: right;
-      font-size: 9pt;
-      color: #374151;
-      line-height: 1.4;
-    }
-    .report-meta strong {
-      color: #111827;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 16px;
-      font-size: 9pt;
-    }
-    th {
-      background-color: #F1F5F9;
-      color: #1E293B;
-      font-weight: 700;
-      text-align: left;
-      padding: 7px 6px;
-      border: 1px solid #CBD5E1;
-      font-size: 8.5pt;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    td {
-      padding: 6px;
-      border: 1px solid #E2E8F0;
-      vertical-align: top;
-      line-height: 1.35;
-    }
-    tr:nth-child(even) td {
-      background-color: #F8FAFC;
-    }
-    .priority-High { color: #DC2626; font-weight: 700; }
-    .priority-Med { color: #D97706; font-weight: 700; }
-    .priority-Low { color: #16A34A; font-weight: 700; }
-    .status-badge {
-      display: inline-block;
-      padding: 1px 5px;
-      border-radius: 3px;
-      background: #EFF6FF;
-      color: #1E40AF;
-      font-weight: 600;
-      font-size: 8pt;
-    }
-    .report-footer {
-      border-top: 1px solid #E2E8F0;
-      padding-top: 8px;
-      margin-top: 16px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 8.5pt;
-      color: #6B7280;
-    }
-    @media print {
-      body { padding: 0; }
-      tr { page-break-inside: avoid; }
-      .no-print { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="report-header">
-    <div class="report-title">
-      <h1>Accomplishment Plan Report</h1>
-      <p>Master Task Accomplishments & Operational Expenses</p>
-    </div>
-    <div class="report-meta">
-      <div>Month/Year: <strong>${escapeHtml(currentMonth)}</strong></div>
-      <div>Total Tasks: <strong>${tasks.length}</strong></div>
-      <div>Printed: <strong>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></div>
-    </div>
-  </div>
+      const pageObjectIds: number[] = [];
+      const contentObjectIds: number[] = [];
 
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 28px; text-align: center;">#</th>
-        <th>Description</th>
-        <th style="width: 80px;">Amount</th>
-        <th style="width: 60px;">Payment</th>
-        <th style="width: 55px;">Unit</th>
-        <th style="width: 50px;">Priority</th>
-        <th style="width: 75px;">Status</th>
-        <th style="width: 85px;">Expected Date</th>
-        <th style="width: 140px;">Account (Code)</th>
-        <th>Remarks</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rowsHtml || '<tr><td colspan="10" style="text-align:center; padding: 20px;">No tasks recorded for this month.</td></tr>'}
-    </tbody>
-  </table>
+      for (let p = 0; p < totalPages; p++) {
+        pageObjectIds.push(5 + p * 2);
+        contentObjectIds.push(6 + p * 2);
+      }
 
-  <div class="report-footer">
-    <span>Accomplishment Plan DB &bull; Confidential Internal Report</span>
-    <span>Developer by Md Al Helal Sarkar</span>
-  </div>
+      // 11 Columns matching Android and Web:
+      // #, Description, Amount, Mode, Unit, Priority, Status, Expected Date, Account, Code, Category
+      const colPositions = [25, 48, 220, 280, 335, 380, 425, 490, 560, 670, 740];
+      const colTitles = ['#', 'Description', 'Amount', 'Mode', 'Unit', 'Priority', 'Status', 'Expected Date', 'Account', 'Code', 'Category'];
 
-  <script>
-    window.onload = function() {
-      setTimeout(function() {
-        window.focus();
-        window.print();
-      }, 250);
-    };
-  <\/script>
-</body>
-</html>`;
+      const pagesContents: string[] = [];
 
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    onClose();
+      for (let p = 0; p < totalPages; p++) {
+        const startIdx = p * itemsPerPage;
+        const endIdx = Math.min(startIdx + itemsPerPage, tasks.length);
+        const pageTasks = tasks.slice(startIdx, endIdx);
+
+        let stream = '';
+
+        // Header Title (repeated on every page)
+        stream += '0.117 0.533 0.898 rg\n'; // Corporate blue #1E88E5
+        stream += 'BT /F2 15 Tf 25 562 Td (' + escapePdf('Accomplishment Plan Report') + ') Tj ET\n';
+
+        stream += '0.420 0.447 0.502 rg\n'; // Gray #6B7280
+        stream += 'BT /F1 9.5 Tf 25 548 Td (' + escapePdf('Master Task Accomplishments & Operational Expenses') + ') Tj ET\n';
+
+        const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const metaStr = 'Month/Year: ' + currentMonth + '  |  Total Tasks: ' + tasks.length + '  |  Date: ' + printDate;
+        stream += 'BT /F1 9.5 Tf 460 556 Td (' + escapePdf(metaStr) + ') Tj ET\n';
+
+        // Divider line below header
+        stream += '0.898 0.906 0.922 RG 1 w 25 538 m 817 538 l S\n';
+
+        // Column Headers (repeated on every page)
+        let currentY = 520;
+        stream += '0.122 0.161 0.216 rg\n'; // #1F2937
+        colTitles.forEach((title, idx) => {
+          const x = colPositions[idx];
+          stream += 'BT /F2 8.5 Tf ' + x + ' ' + currentY + ' Td (' + escapePdf(title) + ') Tj ET\n';
+        });
+
+        currentY -= 6;
+        stream += '0.898 0.906 0.922 RG 1 w 25 ' + currentY + ' m 817 ' + currentY + ' l S\n';
+        currentY -= 16;
+
+        // Data Rows for this page
+        if (pageTasks.length === 0) {
+          stream += '0.420 0.447 0.502 rg\n';
+          stream += 'BT /F1 9 Tf 25 ' + (currentY - 20) + ' Td (' + escapePdf('No tasks recorded for this month.') + ') Tj ET\n';
+        } else {
+          pageTasks.forEach((task, idx) => {
+            const rowNum = (startIdx + idx + 1).toString();
+            const y = currentY;
+
+            stream += '0.067 0.094 0.153 rg\n'; // Dark #111827
+            // #
+            stream += 'BT /F1 8 Tf ' + colPositions[0] + ' ' + y + ' Td (' + escapePdf(rowNum) + ') Tj ET\n';
+            // Description
+            stream += 'BT /F1 8 Tf ' + colPositions[1] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.description, 32)) + ') Tj ET\n';
+            // Amount
+            stream += 'BT /F1 8 Tf ' + colPositions[2] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.amount, 12)) + ') Tj ET\n';
+            // Payment Mode
+            stream += 'BT /F1 8 Tf ' + colPositions[3] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.paymentMode, 10)) + ') Tj ET\n';
+            // Unit
+            stream += 'BT /F1 8 Tf ' + colPositions[4] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.unit, 9)) + ') Tj ET\n';
+
+            // Priority with color
+            if (task.priority === 'High') {
+              stream += '0.863 0.149 0.149 rg\n';
+            } else if (task.priority === 'Med') {
+              stream += '0.851 0.467 0.024 rg\n';
+            } else {
+              stream += '0.086 0.639 0.290 rg\n';
+            }
+            stream += 'BT /F2 8 Tf ' + colPositions[5] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.priority, 8)) + ') Tj ET\n';
+
+            // Status
+            stream += '0.118 0.251 0.686 rg\n';
+            stream += 'BT /F2 8 Tf ' + colPositions[6] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.status, 12)) + ') Tj ET\n';
+
+            // Expected Date, Account, Code, Category
+            stream += '0.067 0.094 0.153 rg\n';
+            stream += 'BT /F1 8 Tf ' + colPositions[7] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.expectedDate, 12)) + ') Tj ET\n';
+            stream += 'BT /F1 8 Tf ' + colPositions[8] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.accountName, 20)) + ') Tj ET\n';
+            stream += 'BT /F1 8 Tf ' + colPositions[9] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.accountCode, 12)) + ') Tj ET\n';
+            stream += 'BT /F1 8 Tf ' + colPositions[10] + ' ' + y + ' Td (' + escapePdf(fitPdfText(task.category, 15)) + ') Tj ET\n';
+
+            // Row divider line
+            stream += '0.941 0.945 0.957 RG 0.5 w 25 ' + (y - 5) + ' m 817 ' + (y - 5) + ' l S\n';
+
+            currentY -= 22;
+          });
+        }
+
+        // Page Footer (repeated on every page with Page X of Y)
+        stream += '0.898 0.906 0.922 RG 1 w 25 35 m 817 35 l S\n';
+        stream += '0.420 0.447 0.502 rg\n';
+        stream += 'BT /F1 8.5 Tf 25 20 Td (' + escapePdf('Accomplishment Plan DB • Confidential Internal Report') + ') Tj ET\n';
+        const pageNumberStr = 'Page ' + (p + 1) + ' of ' + totalPages;
+        stream += 'BT /F1 8.5 Tf 395 20 Td (' + escapePdf(pageNumberStr) + ') Tj ET\n';
+        stream += 'BT /F1 8.5 Tf 640 20 Td (' + escapePdf('Developer by Md Al Helal Sarkar') + ') Tj ET\n';
+
+        pagesContents.push(stream);
+      }
+
+      // Assemble binary chunks with exact UTF-8 byte offset tracking
+      const encoder = new TextEncoder();
+      const chunks: Uint8Array[] = [];
+      let currentByteOffset = 0;
+      const xrefOffsets: number[] = [];
+
+      const appendChunk = (str: string) => {
+        const bytes = encoder.encode(str + '\n');
+        chunks.push(bytes);
+        currentByteOffset += bytes.length;
+      };
+
+      appendChunk('%PDF-1.4');
+      appendChunk('%\xE2\xE3\xCF\xD3');
+
+      // Object 1: Catalog
+      xrefOffsets[1] = currentByteOffset;
+      appendChunk('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj');
+
+      // Object 2: Pages
+      xrefOffsets[2] = currentByteOffset;
+      const kidsStr = pageObjectIds.map((id) => id + ' 0 R').join(' ');
+      appendChunk('2 0 obj\n<< /Type /Pages /Kids [' + kidsStr + '] /Count ' + totalPages + ' >>\nendobj');
+
+      // Object 3: Font Regular (Helvetica)
+      xrefOffsets[3] = currentByteOffset;
+      appendChunk('3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj');
+
+      // Object 4: Font Bold (Helvetica-Bold)
+      xrefOffsets[4] = currentByteOffset;
+      appendChunk('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj');
+
+      // Page objects & Content objects
+      for (let p = 0; p < totalPages; p++) {
+        const pageId = pageObjectIds[p];
+        const contentId = contentObjectIds[p];
+        const contentStr = pagesContents[p];
+
+        // Page Object
+        xrefOffsets[pageId] = currentByteOffset;
+        appendChunk(
+          pageId +
+            ' 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' +
+            pageWidth +
+            ' ' +
+            pageHeight +
+            '] /Contents ' +
+            contentId +
+            ' 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>\nendobj'
+        );
+
+        // Content Object
+        xrefOffsets[contentId] = currentByteOffset;
+        const streamBytes = encoder.encode(contentStr);
+        appendChunk(
+          contentId +
+            ' 0 obj\n<< /Length ' +
+            streamBytes.length +
+            ' >>\nstream\n' +
+            contentStr +
+            'endstream\nendobj'
+        );
+      }
+
+      // Cross-reference table
+      const startXref = currentByteOffset;
+      const totalObjectsCount = 4 + totalPages * 2;
+      let xrefStr = 'xref\n0 ' + (totalObjectsCount + 1) + '\n0000000000 65535 f \n';
+      for (let i = 1; i <= totalObjectsCount; i++) {
+        const off = (xrefOffsets[i] || 0).toString().padStart(10, '0');
+        xrefStr += off + ' 00000 n \n';
+      }
+      xrefStr += 'trailer\n<< /Size ' + (totalObjectsCount + 1) + ' /Root 1 0 R >>\nstartxref\n' + startXref + '\n%%EOF';
+      appendChunk(xrefStr);
+
+      const blob = new Blob(chunks as BlobPart[], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Accomplishment_Plan_Tasks_${currentMonth}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      onClose();
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   return (

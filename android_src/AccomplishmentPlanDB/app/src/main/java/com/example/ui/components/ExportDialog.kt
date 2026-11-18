@@ -496,7 +496,7 @@ private fun exportPdfFile(context: Context, month: String, tasks: List<TaskItem>
         val fileName = "Accomplishment_Plan_Tasks_" + month + ".pdf"
         val cacheFile = File(context.cacheDir, fileName)
 
-        // Load Noto Sans Bengali font if available, fallback to SansSerif
+        // Load Noto Sans Bengali font for rendering both Bengali and English glyphs
         val bengaliTypeface = try {
             ResourcesCompat.getFont(context, R.font.noto_sans_bengali) ?: Typeface.SANS_SERIF
         } catch (_: Exception) {
@@ -504,9 +504,12 @@ private fun exportPdfFile(context: Context, month: String, tasks: List<TaskItem>
         }
 
         val pdfDoc = PdfDocument()
-        val pageWidth = 842  // A4 Landscape width
-        val pageHeight = 595 // A4 Landscape height
-        val itemsPerPage = 20
+        val pageWidth = 842   // A4 Landscape width in points
+        val pageHeight = 595  // A4 Landscape height in points
+
+        // Row height is 24pt to comfortably accommodate 2 lines of text if needed
+        // 17 items per page fits cleanly within the 595pt page height with headers and footers
+        val itemsPerPage = 17
         val totalPages = if (tasks.isEmpty()) 1 else ((tasks.size + itemsPerPage - 1) / itemsPerPage)
 
         val titlePaint = Paint().apply {
@@ -524,9 +527,23 @@ private fun exportPdfFile(context: Context, month: String, tasks: List<TaskItem>
         }
 
         val textPaint = Paint().apply {
-            color = android.graphics.Color.rgb(17, 24, 39)
-            textSize = 8.5f
+            color = android.graphics.Color.rgb(17, 24, 39) // Dark Gray / Black
+            textSize = 8f
             typeface = bengaliTypeface
+            isAntiAlias = true
+        }
+
+        val subTextPaint = Paint().apply {
+            color = android.graphics.Color.rgb(75, 85, 99) // Secondary Gray
+            textSize = 7.5f
+            typeface = bengaliTypeface
+            isAntiAlias = true
+        }
+
+        val boldTextPaint = Paint().apply {
+            color = android.graphics.Color.rgb(17, 24, 39)
+            textSize = 8f
+            typeface = Typeface.create(bengaliTypeface, Typeface.BOLD)
             isAntiAlias = true
         }
 
@@ -542,60 +559,163 @@ private fun exportPdfFile(context: Context, month: String, tasks: List<TaskItem>
             strokeWidth = 1f
         }
 
+        val rowDividerPaint = Paint().apply {
+            color = android.graphics.Color.rgb(243, 244, 246)
+            strokeWidth = 0.5f
+        }
+
         val printDate = SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date())
-        val colPositions = floatArrayOf(30f, 55f, 220f, 280f, 335f, 380f, 425f, 490f, 560f, 670f, 740f)
+
+        // 11 Columns layout:
+        // Col 0: # (22f, width 22f)
+        // Col 1: Description (46f, width 165f) - wraps to 2 lines
+        // Col 2: Amount (215f, width 55f)
+        // Col 3: Mode (274f, width 50f)
+        // Col 4: Unit (328f, width 44f)
+        // Col 5: Priority (376f, width 42f)
+        // Col 6: Status (422f, width 64f)
+        // Col 7: Expected Date (490f, width 62f)
+        // Col 8: Account (556f, width 108f) - wraps to 2 lines
+        // Col 9: Code (668f, width 66f)
+        // Col 10: Category (738f, width 80f)
+        val colPositions = floatArrayOf(22f, 46f, 215f, 274f, 328f, 376f, 422f, 490f, 556f, 668f, 738f)
         val colTitles = arrayOf("#", "Description", "Amount", "Mode", "Unit", "Priority", "Status", "Expected Date", "Account", "Code", "Category")
+
+        // Helper to format amount nicely (e.g. 12500 -> 12,500 TK or preserves existing TK)
+        fun formatAmountText(rawAmount: String?): String {
+            if (rawAmount.isNullOrBlank()) return "-"
+            val trimmed = rawAmount.trim()
+            val num = parseNumericAmount(trimmed)
+            return if (num > 0) {
+                val formattedNum = if (num % 1.0 == 0.0) {
+                    String.format(Locale.US, "%,d", num.toLong())
+                } else {
+                    String.format(Locale.US, "%,.2f", num)
+                }
+                "$formattedNum TK"
+            } else {
+                if (trimmed.endsWith("TK", ignoreCase = true)) trimmed else "$trimmed TK"
+            }
+        }
+
+        // Helper to safely truncate single-line text
+        fun fit(str: String?, maxChars: Int, fallback: String = "-"): String {
+            if (str.isNullOrBlank()) return fallback
+            val s = str.trim()
+            if (s.length <= maxChars) return s
+            return s.take(maxChars - 1) + "…"
+        }
+
+        // Helper to wrap long text into up to 2 lines (ideal for descriptions and account names)
+        fun wrapText(str: String?, charsPerLine: Int): Pair<String, String?> {
+            if (str.isNullOrBlank()) return Pair("-", null)
+            val s = str.trim()
+            if (s.length <= charsPerLine) return Pair(s, null)
+            val line1 = s.take(charsPerLine)
+            val remaining = s.substring(charsPerLine).trim()
+            val line2 = if (remaining.length <= charsPerLine) remaining else remaining.take(charsPerLine - 1) + "…"
+            return Pair(line1, line2)
+        }
 
         for (pageIndex in 0 until totalPages) {
             val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageIndex + 1).create()
             val page = pdfDoc.startPage(pageInfo)
             val canvas: Canvas = page.canvas
 
-            // Page Header (repeated on every page)
-            canvas.drawText("Accomplishment Plan Report", 30f, 32f, titlePaint)
-            canvas.drawText("Master Task Accomplishments & Operational Expenses", 30f, 46f, metaPaint)
-            canvas.drawText("Month/Year: " + month + "  |  Total Tasks: " + tasks.size + "  |  Date: " + printDate, 470f, 38f, metaPaint)
-            canvas.drawLine(30f, 56f, 812f, 56f, linePaint)
+            // 1. Page Header (repeated on every page)
+            canvas.drawText("Accomplishment Plan Report", 22f, 30f, titlePaint)
+            canvas.drawText("Master Task Accomplishments & Operational Expenses", 22f, 44f, metaPaint)
+            val headerMeta = "Month/Year: " + month + "  |  Total Tasks: " + tasks.size + "  |  Date: " + printDate
+            canvas.drawText(headerMeta, 450f, 38f, metaPaint)
+            canvas.drawLine(22f, 54f, 820f, 54f, linePaint)
 
-            // Table Column Headers (repeated on every page)
-            var currentY = 72f
+            // 2. Table Column Headers (repeated on every page)
+            var currentY = 70f
             colTitles.forEachIndexed { i, title ->
                 canvas.drawText(title, colPositions[i], currentY, headerPaint)
             }
             currentY += 6f
-            canvas.drawLine(30f, currentY, 812f, currentY, linePaint)
-            currentY += 16f
+            canvas.drawLine(22f, currentY, 820f, currentY, linePaint)
+            currentY += 15f
 
-            // Data Rows for this page
+            // 3. Data Rows for this page
             val startIdx = pageIndex * itemsPerPage
             val endIdx = minOf(startIdx + itemsPerPage, tasks.size)
 
             if (tasks.isEmpty()) {
-                canvas.drawText("No tasks found for " + month, 30f, currentY + 20f, metaPaint)
+                canvas.drawText("No tasks found for " + month, 22f, currentY + 20f, metaPaint)
             } else {
                 for (i in startIdx until endIdx) {
                     val task = tasks[i]
                     val num = if (task.taskNumber > 0) task.taskNumber.toString() else (i + 1).toString()
-                    canvas.drawText(num, colPositions[0], currentY, textPaint)
-                    canvas.drawText(task.description.take(28), colPositions[1], currentY, textPaint)
-                    canvas.drawText(task.amount.take(10), colPositions[2], currentY, textPaint)
-                    canvas.drawText(task.paymentMode.take(8), colPositions[3], currentY, textPaint)
-                    canvas.drawText(task.unit.take(8), colPositions[4], currentY, textPaint)
-                    canvas.drawText(task.priority, colPositions[5], currentY, textPaint)
-                    canvas.drawText(task.status.take(11), colPositions[6], currentY, textPaint)
-                    canvas.drawText(task.expectedDate.take(11), colPositions[7], currentY, textPaint)
-                    canvas.drawText(task.accountName.take(18), colPositions[8], currentY, textPaint)
-                    canvas.drawText(task.accountCode.take(10), colPositions[9], currentY, textPaint)
-                    canvas.drawText(task.category.take(12), colPositions[10], currentY, textPaint)
+                    val y = currentY
+                    val rowHeight = 24f
 
-                    currentY += 21f
+                    // Col 0: #
+                    canvas.drawText(num, colPositions[0], y, textPaint)
+
+                    // Col 1: Description (wraps up to 2 lines so long descriptions never disappear)
+                    val (desc1, desc2) = wrapText(task.description, 30)
+                    canvas.drawText(desc1, colPositions[1], y, textPaint)
+                    if (desc2 != null) {
+                        canvas.drawText(desc2, colPositions[1], y + 9.5f, subTextPaint)
+                    }
+
+                    // Col 2: Amount (formatted nicely e.g. "12,500 TK")
+                    val amountStr = fit(formatAmountText(task.amount), 13)
+                    canvas.drawText(amountStr, colPositions[2], y, boldTextPaint)
+
+                    // Col 3: Mode
+                    canvas.drawText(fit(task.paymentMode, 10), colPositions[3], y, textPaint)
+
+                    // Col 4: Unit
+                    canvas.drawText(fit(task.unit, 9), colPositions[4], y, textPaint)
+
+                    // Col 5: Priority (styled with priority color)
+                    val pColor = when (task.priority.lowercase()) {
+                        "high" -> android.graphics.Color.rgb(220, 38, 38)
+                        "med", "medium" -> android.graphics.Color.rgb(217, 119, 6)
+                        else -> android.graphics.Color.rgb(22, 163, 74)
+                    }
+                    val priorityPaint = Paint().apply {
+                        color = pColor
+                        textSize = 8f
+                        typeface = Typeface.create(bengaliTypeface, Typeface.BOLD)
+                        isAntiAlias = true
+                    }
+                    canvas.drawText(fit(task.priority, 8), colPositions[5], y, priorityPaint)
+
+                    // Col 6: Status
+                    canvas.drawText(fit(task.status, 13), colPositions[6], y, boldTextPaint)
+
+                    // Col 7: Expected Date
+                    canvas.drawText(fit(task.expectedDate, 12), colPositions[7], y, textPaint)
+
+                    // Col 8: Account Name (wraps up to 2 lines)
+                    val (acc1, acc2) = wrapText(task.accountName, 22)
+                    canvas.drawText(acc1, colPositions[8], y, textPaint)
+                    if (acc2 != null) {
+                        canvas.drawText(acc2, colPositions[8], y + 9.5f, subTextPaint)
+                    }
+
+                    // Col 9: Code
+                    canvas.drawText(fit(task.accountCode, 13), colPositions[9], y, textPaint)
+
+                    // Col 10: Category
+                    canvas.drawText(fit(task.category, 15), colPositions[10], y, textPaint)
+
+                    // Row divider line
+                    canvas.drawLine(22f, y + 13f, 820f, y + 13f, rowDividerPaint)
+
+                    currentY += rowHeight
                 }
             }
 
-            // Page Footer (with Page X of Y on every page)
-            canvas.drawLine(30f, 560f, 812f, 560f, linePaint)
-            canvas.drawText("Accomplishment Plan DB • Confidential Internal Report", 30f, 576f, metaPaint)
-            canvas.drawText("Page " + (pageIndex + 1) + " of " + totalPages, 400f, 576f, metaPaint)
+            // 4. Page Footer (repeated on every page with Page X of Y)
+            canvas.drawLine(22f, 560f, 820f, 560f, linePaint)
+            canvas.drawText("Accomplishment Plan DB • Confidential Internal Report", 22f, 576f, metaPaint)
+            val pageNumberStr = "Page " + (pageIndex + 1) + " of " + totalPages
+            canvas.drawText(pageNumberStr, 395f, 576f, metaPaint)
             canvas.drawText("Developer by Md Al Helal Sarkar", 640f, 576f, metaPaint)
 
             pdfDoc.finishPage(page)

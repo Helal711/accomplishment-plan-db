@@ -90,14 +90,49 @@ class TaskRepository(
 
     // Helper function to safely parse a task document ensuring taskNumber is accurately extracted
     private fun parseTaskDoc(doc: com.google.firebase.firestore.DocumentSnapshot): TaskItem? {
-        val base = doc.toObject(TaskItem::class.java) ?: return null
+        val base = doc.toObject(TaskItem::class.java) ?: TaskItem()
         val rawNum = doc.get("taskNumber")
         val sanitized = sanitizeTaskNumber(rawNum)
         val parsedNum = sanitized ?: when (rawNum) {
             is Number -> if (rawNum.toDouble().isFinite()) rawNum.toInt() else 0
-            else -> 0
+            else -> base.taskNumber
         }
-        return base.copy(id = doc.id, taskNumber = parsedNum)
+
+        // Resilient fallback for amount: if Firestore stored amount as a Number or String
+        val amountStr = when (val rawAmount = doc.get("amount")) {
+            is Number -> if (rawAmount.toDouble() % 1.0 == 0.0) rawAmount.toLong().toString() else rawAmount.toString()
+            is String -> rawAmount
+            else -> base.amount
+        }
+
+        val descriptionStr = doc.getString("description") ?: base.description
+        val paymentModeStr = doc.getString("paymentMode") ?: base.paymentMode
+        val unitStr = doc.getString("unit") ?: base.unit
+        val priorityStr = doc.getString("priority") ?: base.priority
+        val statusStr = doc.getString("status") ?: base.status
+        val expectedDateStr = doc.getString("expectedDate") ?: base.expectedDate
+        val accountNameStr = doc.getString("accountName") ?: base.accountName
+        val accountCodeStr = doc.getString("accountCode") ?: base.accountCode
+        val categoryStr = doc.getString("category") ?: base.category
+        val remarksStr = doc.getString("remarks") ?: base.remarks
+        val monthYearStr = doc.getString("monthYear") ?: base.monthYear
+
+        return base.copy(
+            id = doc.id,
+            taskNumber = parsedNum,
+            description = descriptionStr,
+            amount = amountStr,
+            paymentMode = paymentModeStr,
+            unit = unitStr,
+            priority = priorityStr,
+            status = statusStr,
+            expectedDate = expectedDateStr,
+            accountName = accountNameStr,
+            accountCode = accountCodeStr,
+            category = categoryStr,
+            remarks = remarksStr,
+            monthYear = monthYearStr
+        )
     }
 
     // Observe tasks for current user and selected month

@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Building2, ChevronDown, Trash2, Edit3 } from 'lucide-react';
 import { TaskItem, Priority } from '../types';
+import { getStatusColor } from '../utils/statusColors';
+
+export { getStatusColor };
 
 interface TaskCardProps {
   task: TaskItem;
@@ -105,37 +108,63 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               }}
               className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-transform hover:scale-[1.02]"
             >
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: statusColors.dot }}
+                aria-hidden="true"
+              />
               <span>{task.status || 'Draft Ready'}</span>
               <ChevronDown className="w-3 h-3 opacity-75" />
             </button>
 
             {statusDropdownOpen && (
               <div
-                className="absolute right-0 bottom-full mb-1 sm:bottom-auto sm:top-full sm:mt-1 w-40 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-30 animate-fadeIn"
+                className="absolute right-0 bottom-full mb-1 sm:bottom-auto sm:top-full sm:mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-30 animate-fadeIn max-h-60 overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   Update Status
                 </div>
-                {availableStatuses.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStatusChange(opt);
-                      setStatusDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center justify-between ${
-                      opt === task.status
-                        ? 'font-bold bg-blue-50 text-app-primary'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span>{opt}</span>
-                    {opt === task.status && <span className="w-1.5 h-1.5 rounded-full bg-app-primary"></span>}
-                  </button>
-                ))}
+                {availableStatuses.map((opt) => {
+                  const optColors = getStatusColor(opt);
+                  const isCurrent = opt.toLowerCase().trim() === (task.status || '').toLowerCase().trim();
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStatusChange(opt);
+                        setStatusDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 text-xs transition-colors flex items-center justify-between gap-2 ${
+                        isCurrent ? 'bg-gray-50 font-bold' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <span
+                        style={{
+                          backgroundColor: optColors.bg,
+                          color: optColors.text,
+                          borderColor: optColors.border,
+                        }}
+                        className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border truncate"
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: optColors.dot }}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{opt}</span>
+                      </span>
+                      {isCurrent && (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: optColors.dot }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -193,23 +222,3 @@ export const PriorityBadge: React.FC<{ priority: Priority | string }> = ({ prior
     </div>
   );
 };
-
-export function getStatusColor(status: string) {
-  const s = (status || '').toLowerCase();
-  if (s === 'done') {
-    return { bg: '#E8F5E9', text: '#2E7D32', border: '#A5D6A7' };
-  }
-  if (s === 'advance ready') {
-    return { bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' };
-  }
-  if (s === 'draft ready') {
-    return { bg: '#FEF9C3', text: '#854D0E', border: '#FDE047' };
-  }
-  if (s === 'in progress') {
-    return { bg: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' };
-  }
-  if (s === 'cancelled') {
-    return { bg: '#FEE2E2', text: '#B91C1C', border: '#FCA5A5' };
-  }
-  return { bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB' };
-}

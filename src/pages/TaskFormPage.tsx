@@ -39,6 +39,8 @@ import {
 } from '../types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DeveloperFooter } from '../components/DeveloperFooter';
+import { getSavedMonthForUser } from '../utils/monthUtils';
+import { getStatusColor } from '../utils/statusColors';
 
 export const TaskFormPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
@@ -48,7 +50,7 @@ export const TaskFormPage: React.FC = () => {
 
   const isNew = !taskId || taskId === 'new';
   const initialTask: TaskItem | undefined = location.state?.task;
-  const initialMonth: string = location.state?.month || 'Nov-2026';
+  const initialMonth: string = location.state?.month || getSavedMonthForUser(currentUser?.uid);
 
   // Form State
   const [description, setDescription] = useState(initialTask?.description || '');
@@ -132,11 +134,19 @@ export const TaskFormPage: React.FC = () => {
 
   // Combine and sort statuses A-Z (case-insensitive) for display
   const combinedStatusNames = useMemo(() => {
-    const set = new Set([...DEFAULT_STATUSES, ...statuses.map((s) => s.statusName)]);
-    if (status && !set.has(status)) {
-      set.add(status);
+    const seen = new Set<string>();
+    const list: string[] = [];
+    const allCandidates = [...DEFAULT_STATUSES, 'Hold from MR Team', ...statuses.map((s) => s.statusName), status];
+    for (const st of allCandidates) {
+      const trimmed = (st || '').trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(trimmed);
+      }
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return list.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [statuses, status]);
 
   // Combine and sort categories A-Z (case-insensitive) for display
@@ -482,21 +492,56 @@ export const TaskFormPage: React.FC = () => {
 
             {/* 7. Status Selection */}
             <div>
-              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1.5">
-                Task Status
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
+                  Task Status
+                </label>
+                {(() => {
+                  const activeColors = getStatusColor(status);
+                  return (
+                    <span
+                      style={{
+                        backgroundColor: activeColors.bg,
+                        color: activeColors.text,
+                        borderColor: activeColors.border,
+                      }}
+                      className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border"
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: activeColors.dot }}
+                        aria-hidden="true"
+                      />
+                      <span>{status}</span>
+                    </span>
+                  );
+                })()}
+              </div>
               <div className="relative">
                 <Tag className="w-4 h-4 text-gray-400 absolute left-3.5 top-3 pointer-events-none" />
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent bg-white font-medium"
+                  style={{
+                    borderColor: getStatusColor(status).border,
+                  }}
+                  className="w-full pl-10 pr-3.5 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent bg-white font-medium"
                 >
-                  {combinedStatusNames.map((st) => (
-                    <option key={st} value={st}>
-                      {st}
-                    </option>
-                  ))}
+                  {combinedStatusNames.map((st) => {
+                    const optColors = getStatusColor(st);
+                    return (
+                      <option
+                        key={st}
+                        value={st}
+                        style={{
+                          backgroundColor: optColors.bg,
+                          color: optColors.text,
+                        }}
+                      >
+                        {st}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Sliders, Plus, Trash2, X, Tag } from 'lucide-react';
+import { Sliders, Plus, Trash2, X } from 'lucide-react';
 import { StatusItem, DEFAULT_STATUSES } from '../types';
+import { getStatusColor } from '../utils/statusColors';
 
 interface StatusManagerModalProps {
   isOpen: boolean;
@@ -78,18 +79,32 @@ export const StatusManagerModal: React.FC<StatusManagerModalProps> = ({
             Standard Statuses
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {DEFAULT_STATUSES.map((name) => (
-              <div
-                key={name}
-                className="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700"
-              >
-                <div className="flex items-center space-x-1.5 truncate">
-                  <Tag className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                  <span className="truncate">{name}</span>
+            {DEFAULT_STATUSES.map((name) => {
+              const colors = getStatusColor(name);
+              return (
+                <div
+                  key={name}
+                  style={{
+                    backgroundColor: colors.bg,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  }}
+                  className="flex items-center justify-between px-3 py-2 border rounded-lg text-xs font-medium"
+                >
+                  <div className="flex items-center space-x-1.5 truncate">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: colors.dot }}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate font-semibold">{name}</span>
+                  </div>
+                  <span className="text-[10px] bg-white/75 text-gray-700 px-1.5 py-0.5 rounded font-medium">
+                    Default
+                  </span>
                 </div>
-                <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">Default</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Custom Statuses */}
@@ -103,24 +118,37 @@ export const StatusManagerModal: React.FC<StatusManagerModalProps> = ({
             <div className="space-y-1.5">
               {statuses
                 .filter((s) => !s.isDefault)
-                .map((st) => (
-                  <div
-                    key={st.id}
-                    className="flex items-center justify-between px-3 py-2 bg-blue-50/50 border border-blue-100 rounded-lg text-xs font-medium text-gray-800"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Tag className="w-3.5 h-3.5 text-app-primary" />
-                      <span>{st.statusName}</span>
-                    </div>
-                    <button
-                      onClick={() => onRemoveStatus(st.id)}
-                      title="Remove status"
-                      className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                .map((st) => {
+                  const colors = getStatusColor(st.statusName);
+                  return (
+                    <div
+                      key={st.id}
+                      style={{
+                        backgroundColor: colors.bg,
+                        borderColor: colors.border,
+                        color: colors.text,
+                      }}
+                      className="flex items-center justify-between px-3 py-2 border rounded-lg text-xs font-medium"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: colors.dot }}
+                          aria-hidden="true"
+                        />
+                        <span className="font-semibold">{st.statusName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveStatus(st.id)}
+                        title="Remove status"
+                        className="p-1 text-red-500 hover:text-red-700 hover:bg-white/60 rounded"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
