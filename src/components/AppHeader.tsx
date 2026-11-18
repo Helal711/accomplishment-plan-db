@@ -183,7 +183,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* Expandable Search Bar */}
       {isSearchOpen && (
-        <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2 animate-fadeIn">
+        <div className="bg-white border-b border-gray-200 px-2.5 sm:px-4 py-1.5 sm:py-2 animate-fadeIn">
           <div className="max-w-4xl mx-auto relative flex items-center">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 pointer-events-none" />
             <input
@@ -192,7 +192,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search description, amount, payment mode, account, status, category, remarks..."
               autoFocus
-              className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
+              className="w-full pl-9 pr-8 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
             />
             {searchQuery && (
               <button
@@ -207,26 +207,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       )}
 
-      {/* Subheader Count Bar: Compact clickable status filter pill buttons (responsive wrap, no horizontal scrolling) */}
+      {/* Subheader Count Bar: Ultra-compact on mobile (<640px), compact pills on desktop (>=640px) */}
       <div className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
         <div
           data-testid="status-summary-bar"
-          className="max-w-4xl mx-auto px-3 sm:px-4 py-2 flex flex-wrap items-center gap-1.5 sm:gap-2"
+          className="max-w-4xl mx-auto px-2 sm:px-4 py-1 sm:py-2 flex flex-wrap items-center gap-1 sm:gap-2"
         >
           {/* Total Items Button (Neutral Blue Theme) */}
           <button
             type="button"
             onClick={() => onSelectStatus?.(null)}
             aria-pressed={selectedStatus === null}
-            className={`inline-flex items-center gap-1 px-2.5 py-[5px] min-h-[30px] max-w-full rounded-full text-xs leading-tight font-semibold border transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-[3px] sm:gap-1 px-1.5 sm:px-2.5 py-[2px] sm:py-[5px] min-h-[22px] sm:min-h-[30px] max-w-full rounded-full text-[10.5px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer ${
               selectedStatus === null
-                ? 'bg-app-primary text-white border-app-primary shadow-sm ring-2 ring-blue-200'
+                ? 'bg-app-primary text-white border-app-primary shadow-sm ring-1 sm:ring-2 ring-blue-200'
                 : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100/80'
             }`}
           >
             <span>Total Items:</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold leading-none ${
+              className={`px-1 sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[9.5px] sm:text-[11px] font-bold leading-none ${
                 selectedStatus === null
                   ? 'bg-white/20 text-white'
                   : 'bg-white text-blue-900 border border-blue-200'
@@ -256,22 +256,22 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     borderColor: isActive ? colors.dot : colors.border,
                     boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
                   }}
-                  className={`inline-flex items-center gap-1 px-2.5 py-[5px] min-h-[30px] max-w-full rounded-full text-xs leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97] ${
+                  className={`inline-flex items-center gap-[3px] sm:gap-1 px-1.5 sm:px-2.5 py-[2px] sm:py-[5px] min-h-[22px] sm:min-h-[30px] max-w-full rounded-full text-[10.5px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97] ${
                     isActive ? 'shadow-sm' : ''
                   }`}
                 >
                   <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    className="w-[5px] h-[5px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: colors.dot }}
                     aria-hidden="true"
                   />
-                  <span className="truncate max-w-[160px] sm:max-w-[210px]">{st.name}:</span>
+                  <span className="truncate max-w-[115px] sm:max-w-[210px]">{st.name}:</span>
                   <span
                     style={{
                       backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
                       color: isActive ? '#FFFFFF' : colors.text,
                     }}
-                    className="px-1.5 py-0.5 rounded-full text-[11px] font-bold leading-none flex-shrink-0"
+                    className="px-1 sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[9.5px] sm:text-[11px] font-bold leading-none flex-shrink-0"
                   >
                     {st.count}
                   </span>
@@ -293,10 +293,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     borderColor: isActive ? colors.dot : colors.border,
                     boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
                   }}
-                  className="inline-flex items-center gap-1 px-2.5 py-[5px] min-h-[30px] max-w-full rounded-full text-xs leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97]"
+                  className="inline-flex items-center gap-[3px] sm:gap-1 px-1.5 sm:px-2.5 py-[2px] sm:py-[5px] min-h-[22px] sm:min-h-[30px] max-w-full rounded-full text-[10.5px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97]"
                 >
                   <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    className="w-[5px] h-[5px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: colors.dot }}
                     aria-hidden="true"
                   />
@@ -306,7 +306,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       backgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
                       color: isActive ? '#FFFFFF' : colors.text,
                     }}
-                    className="px-1.5 py-0.5 rounded-full text-[11px] font-bold leading-none flex-shrink-0"
+                    className="px-1 sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[9.5px] sm:text-[11px] font-bold leading-none flex-shrink-0"
                   >
                     {pendingCount}
                   </span>
