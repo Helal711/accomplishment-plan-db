@@ -64,7 +64,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     <header className="sticky top-0 z-40 w-full bg-white shadow-sm">
       {/* Primary Corporate Blue Header */}
       <div className="bg-app-primary text-white">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-2 sm:px-4 h-12 sm:h-14 flex items-center justify-between">
           {/* Left: Settings Menu */}
           <div className="relative" ref={settingsMenuRef}>
             <button
@@ -183,22 +183,22 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* Expandable Search Bar */}
       {isSearchOpen && (
-        <div className="bg-white border-b border-gray-200 px-2.5 sm:px-4 py-1.5 sm:py-2 animate-fadeIn">
+        <div className="bg-white border-b border-gray-200 px-1.5 sm:px-4 py-1 sm:py-2 animate-fadeIn">
           <div className="max-w-4xl mx-auto relative flex items-center">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 pointer-events-none" />
+            <Search className="w-4 h-4 text-gray-400 absolute left-2.5 sm:left-3 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search description, amount, payment mode, account, status, category, remarks..."
               autoFocus
-              className="w-full pl-9 pr-8 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
+              className="w-full pl-8 sm:pl-9 pr-8 py-1 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
-                className="absolute right-2.5 p-1 text-gray-400 hover:text-gray-600 rounded"
+                className="absolute right-2 sm:right-2.5 p-1 text-gray-400 hover:text-gray-600 rounded"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -211,7 +211,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       <div className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
         <div
           data-testid="status-summary-bar"
-          className="max-w-4xl mx-auto px-2 sm:px-4 py-1 sm:py-2 flex flex-wrap items-center gap-1 sm:gap-2"
+          className="max-w-4xl mx-auto px-1 sm:px-4 py-[2px] sm:py-2 flex flex-wrap items-center gap-x-[3px] gap-y-[2px] sm:gap-2"
         >
           {/* Total Items Button (Neutral Blue Theme) */}
           <button

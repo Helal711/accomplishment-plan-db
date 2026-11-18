@@ -237,7 +237,7 @@ export const DashboardPage: React.FC = () => {
         />
 
         {/* Content Container with bottom padding for fixed footer & FAB */}
-        <main className="max-w-4xl mx-auto px-2.5 sm:px-4 pt-2 pb-24 sm:py-4 sm:pb-28">
+        <main className="max-w-4xl mx-auto px-1.5 sm:px-4 pt-1 pb-20 sm:py-4 sm:pb-28">
           {loadingTasks ? (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-3 border-app-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -281,7 +281,7 @@ export const DashboardPage: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="space-y-2 sm:space-y-2.5">
+            <div className="space-y-1.5 sm:space-y-2.5">
               {filteredTasks.map((task, index) => (
                 <TaskCard
                   key={task.id || `${task.taskNumber}-${index}`}
