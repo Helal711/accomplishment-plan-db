@@ -41,6 +41,13 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DeveloperFooter } from '../components/DeveloperFooter';
 import { getSavedMonthForUser } from '../utils/monthUtils';
 import { getStatusColor } from '../utils/statusColors';
+import {
+  initPurchaseAmountState,
+  applyUnitPriceChange,
+  applyTotalQuantityChange,
+  applyManualPurchasedAmountChange,
+  calculatePurchasedAmount,
+} from '../utils/purchaseAmount';
 
 export const TaskFormPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
@@ -56,6 +63,9 @@ export const TaskFormPage: React.FC = () => {
   const [description, setDescription] = useState(initialTask?.description || '');
   const [amount, setAmount] = useState(
     initialTask?.amount ? initialTask.amount.replace(/\s*TK/i, '') : ''
+  );
+  const [purchaseState, setPurchaseState] = useState(() =>
+    initPurchaseAmountState(initialTask)
   );
   const [priority, setPriority] = useState<Priority>(initialTask?.priority || 'High');
   const [unit, setUnit] = useState(initialTask?.unit || 'Unit-1');
@@ -189,12 +199,19 @@ export const TaskFormPage: React.FC = () => {
         return;
       }
 
+      const cleanedUnitPrice = purchaseState.unitPrice.trim();
+      const cleanedTotalQuantity = purchaseState.totalQuantity.trim();
+      const cleanedPurchasedAmount = purchaseState.purchasedAmount.trim();
+
       if (isNew) {
         await addTask({
           ownerUid: currentUser.uid,
           taskNumber,
           description: description.trim(),
           amount: cleanedAmount,
+          unitPrice: cleanedUnitPrice,
+          totalQuantity: cleanedTotalQuantity,
+          purchasedAmount: cleanedPurchasedAmount,
           paymentMode,
           unit,
           priority,
@@ -211,6 +228,9 @@ export const TaskFormPage: React.FC = () => {
         await updateTask(taskId, {
           description: description.trim(),
           amount: cleanedAmount,
+          unitPrice: cleanedUnitPrice,
+          totalQuantity: cleanedTotalQuantity,
+          purchasedAmount: cleanedPurchasedAmount,
           paymentMode,
           unit,
           priority,
@@ -355,6 +375,99 @@ export const TaskFormPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 2b. Optional Purchase Calculation Fields (Unit Price, Total Quantity, Purchased Amount) */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                  Purchase Details <span className="font-normal normal-case text-gray-400">(Optional)</span>
+                </span>
+                {purchaseState.purchasedAmount.trim() && (
+                  <span
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      purchaseState.isManualOverride
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : calculatePurchasedAmount(purchaseState.unitPrice, purchaseState.totalQuantity) !== null
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {purchaseState.isManualOverride
+                      ? 'Manual amount'
+                      : 'Auto: Unit Price × Qty'}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label
+                    htmlFor="unit-price-input"
+                    className="block text-[11px] font-semibold text-gray-700 mb-1"
+                  >
+                    Unit Price
+                  </label>
+                  <input
+                    id="unit-price-input"
+                    type="text"
+                    inputMode="decimal"
+                    value={purchaseState.unitPrice}
+                    onChange={(e) =>
+                      setPurchaseState((prev) => applyUnitPriceChange(prev, e.target.value))
+                    }
+                    placeholder="e.g. 500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="total-quantity-input"
+                    className="block text-[11px] font-semibold text-gray-700 mb-1"
+                  >
+                    Total Quantity
+                  </label>
+                  <input
+                    id="total-quantity-input"
+                    type="text"
+                    inputMode="decimal"
+                    value={purchaseState.totalQuantity}
+                    onChange={(e) =>
+                      setPurchaseState((prev) => applyTotalQuantityChange(prev, e.target.value))
+                    }
+                    placeholder="e.g. 10"
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="purchased-amount-input"
+                    className="block text-[11px] font-semibold text-gray-700 mb-1"
+                  >
+                    Purchased Amount (TK)
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="purchased-amount-input"
+                      type="text"
+                      inputMode="decimal"
+                      value={purchaseState.purchasedAmount}
+                      onChange={(e) =>
+                        setPurchaseState((prev) =>
+                          applyManualPurchasedAmountChange(prev, e.target.value)
+                        )
+                      }
+                      placeholder="Auto or manual"
+                      className="w-full pl-3 pr-10 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent font-medium text-emerald-800"
+                    />
+                    <span className="absolute right-3 top-2 text-[11px] font-bold text-gray-400">
+                      TK
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

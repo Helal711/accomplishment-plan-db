@@ -125,6 +125,9 @@ export function subscribeToTasks(
           category: data.category || '',
           remarks: data.remarks || '',
           monthYear: data.monthYear || monthYear,
+          unitPrice: data.unitPrice !== undefined && data.unitPrice !== null ? String(data.unitPrice) : '',
+          totalQuantity: data.totalQuantity !== undefined && data.totalQuantity !== null ? String(data.totalQuantity) : '',
+          purchasedAmount: data.purchasedAmount !== undefined && data.purchasedAmount !== null ? String(data.purchasedAmount) : '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         };
@@ -344,9 +347,12 @@ export async function addTask(task: Omit<TaskItem, 'id'>): Promise<string> {
 
       allocatedTaskNumber = counterLast + 1;
 
-      // 1. Create task document inside transaction
+      // 1. Create task document inside transaction (strip undefined optional fields safely)
+      const sanitizedTaskPayload = Object.fromEntries(
+        Object.entries(task).filter(([, value]) => value !== undefined)
+      );
       transaction.set(newTaskRef, {
-        ...task,
+        ...sanitizedTaskPayload,
         ownerUid: currentAuthUid,
         taskNumber: allocatedTaskNumber,
         createdAt: serverTimestamp(),
@@ -383,7 +389,10 @@ export async function updateTask(
   logFirestoreOp('Tasks', 'update', currentAuthUid, taskId);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { id, ownerUid, taskNumber, ...dataToUpdate } = updates;
+  const { id, ownerUid, taskNumber, ...rawUpdates } = updates;
+  const dataToUpdate = Object.fromEntries(
+    Object.entries(rawUpdates).filter(([, value]) => value !== undefined)
+  );
   const docRef = doc(db, 'Tasks', taskId);
 
   await updateDoc(docRef, {

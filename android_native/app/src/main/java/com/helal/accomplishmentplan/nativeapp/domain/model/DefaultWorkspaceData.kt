@@ -1,0 +1,225 @@
+package com.helal.accomplishmentplan.nativeapp.domain.model
+
+data class DefaultAccountSeed(
+    val accountName: String,
+    val accountCode: String
+)
+
+/**
+ * Authoritative default workspace catalog matching the React Web App (src/types/index.ts).
+ * Used ONLY for additive workspace seeding — never deletes user-created records.
+ */
+object DefaultWorkspaceData {
+
+    val DEFAULT_STATUSES: List<String> = listOf(
+        "Draft Ready",
+        "Done",
+        "Advance Ready",
+        "Pending",
+        "In Progress",
+        "Cancelled"
+    )
+
+    val DEFAULT_UNITS: List<String> = listOf(
+        "Unit-1",
+        "Unit-2",
+        "Unit-3"
+    )
+
+    val DEFAULT_PAYMENTS: List<String> = listOf(
+        "Cash",
+        "Bank",
+        "Cheque"
+    )
+
+    val DEFAULT_CATEGORIES: List<String> = listOf(
+        "Furniture & fixture",
+        "Compliance & fire safety",
+        "Materials",
+        "Service",
+        "Food",
+        "Medical",
+        "Book Printing",
+        "Accessories & others",
+        "Auxiliary facilities",
+        "Renovation",
+        "Electrical",
+        "Machinery",
+        "Needle",
+        "Sewing spare parts",
+        "Cutting spare parts",
+        "Hardware",
+        "Printing Section",
+        "LAB",
+        "Additional"
+    )
+
+    val DEFAULT_ACCOUNTS: List<DefaultAccountSeed> = listOf(
+        DefaultAccountSeed("M_Salaries wages(Basic salary)", "4521001"),
+        DefaultAccountSeed("M_Salaries wages(Allowances)", "4521002"),
+        DefaultAccountSeed("M_Salaries wages(Korean)", "4521003"),
+        DefaultAccountSeed("Salaries wages(Overtime)", "4521004"),
+        DefaultAccountSeed("M_Bonus(Bonus & incentives)", "4521051"),
+        DefaultAccountSeed("M_Miscellaneous salaries(Other)", "4521101"),
+        DefaultAccountSeed("M_Commissions(TEST fee)", "4532201"),
+        DefaultAccountSeed("M_Commissions(General Maintenance fee)", "4532202"),
+        DefaultAccountSeed("M_Commissions(IT maintenance fee)", "4532203"),
+        DefaultAccountSeed("M_Commissions(Financial fee)", "4532204"),
+        DefaultAccountSeed("M_Commissions(Document issuance fee)", "4532205"),
+        DefaultAccountSeed("M_Commissions(Audit fee)", "4532209"),
+        DefaultAccountSeed("M_Commissions(Consulting fee)", "4532211"),
+        DefaultAccountSeed("M_Commissions(COMMISSION)", "4532212"),
+        DefaultAccountSeed("M_Commissions(Other)", "4532213"),
+        DefaultAccountSeed("M_Supply expenses(Factory equipment)", "4532151"),
+        DefaultAccountSeed("M_Supply expenses(Factory equipment Rent)", "4532152"),
+        DefaultAccountSeed("M_Supply expenses(Computer supplies)", "4532153"),
+        DefaultAccountSeed("M_Supply expenses(Other)", "4532154"),
+        DefaultAccountSeed("M_Supply expenses(Local materials)", "4532155"),
+        DefaultAccountSeed("M_Supply expenses(Machine Spare part)", "4532156"),
+        DefaultAccountSeed("M_Supply expenses(PVC)", "4532158"),
+        DefaultAccountSeed("M_Outsourcing processing expenses (Other general)", "4532404"),
+        DefaultAccountSeed("M_Publication expenses(Other)", "4532001"),
+        DefaultAccountSeed("M_Mold expenses(Other)", "4532101"),
+        DefaultAccountSeed("M_Insurance premiums(Fire-Fixed asset)", "4531752"),
+        DefaultAccountSeed("M_Insurance premiums(Fire-Inventory asset)", "4531753"),
+        DefaultAccountSeed("M_Insurance premiums(Accident insurance)", "4531754"),
+        DefaultAccountSeed("M_Insurance premiums(Automobile)", "4531755"),
+        DefaultAccountSeed("M_Insurance premiums(Other)", "4531756"),
+        DefaultAccountSeed("M_Travel expenses(Overseas-Air fare)", "4531151"),
+        DefaultAccountSeed("M_Travel expenses(Overseas-Daily expenses)", "4531152"),
+        DefaultAccountSeed("M_Travel expenses(Overseas-Hotel)", "4531153"),
+        DefaultAccountSeed("M_Travel expenses(Overseas-Business trip expenses)", "4531154"),
+        DefaultAccountSeed("M_Travel expenses(Domestic-Business trip expenses)", "4531155"),
+        DefaultAccountSeed("M_Travel expenses(Out-of-office expenses)", "4531156"),
+        DefaultAccountSeed("M_Travel expenses(Other)", "4531157"),
+        DefaultAccountSeed("M_Utility expenses(Water)", "4531401"),
+        DefaultAccountSeed("M_Utility expenses(Light)", "4531402"),
+        DefaultAccountSeed("M_Utility expenses(Heating)", "4531403"),
+        DefaultAccountSeed("M_Utility expenses(Other)", "4531404"),
+        DefaultAccountSeed("M_Repair expenses(Other)", "4531701"),
+        DefaultAccountSeed("M_Employee benefits(Overtime meal)", "4531006"),
+        DefaultAccountSeed("M_Employee benefits(Dining together)", "4531007"),
+        DefaultAccountSeed("M_Employee benefits(Meal)", "4531008"),
+        DefaultAccountSeed("M_Employee benefits(Congratulations and condolences)", "4531009"),
+        DefaultAccountSeed("M_Employee benefits(Other)", "4531014"),
+        DefaultAccountSeed("M_Convention expenses(Other)", "4531051"),
+        DefaultAccountSeed("M_Taxes and Dues(Property tax)", "4531453"),
+        DefaultAccountSeed("M_Taxes and Dues(Automobile tax)", "4531454"),
+        DefaultAccountSeed("M_Taxes and Dues(Other)", "4531459"),
+        DefaultAccountSeed("M_Rental expenses(Maintenance fee)", "4531601"),
+        DefaultAccountSeed("M_Rental expenses(Rent)", "4531602"),
+        DefaultAccountSeed("M_Rental expenses(Land Rent)", "4531603"),
+        DefaultAccountSeed("M_Vehicle fuel expenses(Fuel)", "4531202"),
+        DefaultAccountSeed("M_Vehicle repair expenses(Repair)", "4531252"),
+        DefaultAccountSeed("M_Vehicle maintenance expenses(Other)", "4531301"),
+        DefaultAccountSeed("M_Vehicle maintenance expenses(Rent)", "4531302"),
+        DefaultAccountSeed("M_Entertainment expenses(Other)", "4531101"),
+        DefaultAccountSeed("M_Communication expenses(Telephone)", "4531351"),
+        DefaultAccountSeed("M_Communication expenses(Cell phone)", "4531352"),
+        DefaultAccountSeed("M_Communication expenses(Other)", "4531353"),
+        DefaultAccountSeed("M_Training Expenses(Other)", "4531951"),
+        DefaultAccountSeed("S_Salaries wages(Basic salary)", "6111001"),
+        DefaultAccountSeed("S_Salaries wages(Allowance)", "6111002"),
+        DefaultAccountSeed("S_Salaries wages(Korean)", "6111003"),
+        DefaultAccountSeed("S_Salaries wages(Overtime)", "6111004"),
+        DefaultAccountSeed("S_Bonus(Bonus & incentives)", "6111051"),
+        DefaultAccountSeed("S_Miscellaneous salaries(Other)", "6111101"),
+        DefaultAccountSeed("S_Commissions(TEST fee)", "6112501"),
+        DefaultAccountSeed("S_Commissions(General Maintenance fee)", "6112502"),
+        DefaultAccountSeed("S_Commissions(IT maintenance fee)", "6112503"),
+        DefaultAccountSeed("S_Commissions(Financial fee)", "6112504"),
+        DefaultAccountSeed("S_Commissions(Document issuance fee)", "6112505"),
+        DefaultAccountSeed("S_Commissions(Audit fee)", "6112509"),
+        DefaultAccountSeed("S_Commissions(Consulting fee)", "6112513"),
+        DefaultAccountSeed("S_Commissions(COMMISSION)", "6112514"),
+        DefaultAccountSeed("S_Commissions(Other)", "6112515"),
+        DefaultAccountSeed("S_Supply expenses(Office equipment)", "6112451"),
+        DefaultAccountSeed("S_Supply expenses(Office equipment Rent)", "6112452"),
+        DefaultAccountSeed("S_Supply expenses(Computer supplies)", "6112453"),
+        DefaultAccountSeed("S_Supply expenses(Other)", "6112454"),
+        DefaultAccountSeed("S_Publication expenses(Other)", "6112251"),
+        DefaultAccountSeed("S_Mold expenses(Other)", "6112401"),
+        DefaultAccountSeed("S_Insurance premiums(Inland transport)", "6111802"),
+        DefaultAccountSeed("S_Insurance premiums(Fire-Fixed asset)", "6111803"),
+        DefaultAccountSeed("S_Insurance premiums(Fire-Inventory asset)", "6111804"),
+        DefaultAccountSeed("S_Insurance premiums(Accident insurance)", "6111805"),
+        DefaultAccountSeed("S_Insurance premiums(Automobile)", "6111806"),
+        DefaultAccountSeed("S_Insurance premiums(Bonds)", "6111807"),
+        DefaultAccountSeed("S_Insurance premiums(Other)", "6111809"),
+        DefaultAccountSeed("S_Travel expenses(Overseas-Air fare)", "6111301"),
+        DefaultAccountSeed("S_Travel expenses(Overseas-Daily expenses)", "6111302"),
+        DefaultAccountSeed("S_Travel expenses(Overseas-Hotel)", "6111303"),
+        DefaultAccountSeed("S_Travel expenses(Overseas-Business trip expenses)", "6111304"),
+        DefaultAccountSeed("S_Travel expenses(Domestic-Business trip expenses)", "6111305"),
+        DefaultAccountSeed("S_Travel expenses(Out-of-office expenses)", "6111306"),
+        DefaultAccountSeed("S_Travel expenses(Other)", "6111307"),
+        DefaultAccountSeed("S_Utility expenses(Other)", "6112051"),
+        DefaultAccountSeed("S_Repair expenses(Other)", "6111751"),
+        DefaultAccountSeed("S_Employee benefits(Overtime meal)", "6111206"),
+        DefaultAccountSeed("S_Employee benefits(Dining together)", "6111207"),
+        DefaultAccountSeed("S_Employee benefits(Meal)", "6111208"),
+        DefaultAccountSeed("S_Employee benefits(Congratulations and condolences)", "6111209"),
+        DefaultAccountSeed("S_Employee benefits(Other)", "6111214"),
+        DefaultAccountSeed("S_Convention expenses(Other)", "6112301"),
+        DefaultAccountSeed("S_Taxes and Dues(Property tax)", "6111503"),
+        DefaultAccountSeed("S_Taxes and Dues(Automobile tax)", "6111504"),
+        DefaultAccountSeed("S_Taxes and Dues(Other)", "6111509"),
+        DefaultAccountSeed("S_Rental expenses(Maintenance fee)", "6111701"),
+        DefaultAccountSeed("S_Rental expenses(Rent)", "6111702"),
+        DefaultAccountSeed("S_Rental expenses(House Rent)", "6111703"),
+        DefaultAccountSeed("S_Vehicle fuel expenses(Fuel)", "6111901"),
+        DefaultAccountSeed("S_Vehicle repair expenses(Repair)", "6111951"),
+        DefaultAccountSeed("S_Vehicle maintenance expenses(Rent)", "6112001"),
+        DefaultAccountSeed("S_Vehicle maintenance expenses(Other)", "6112002"),
+        DefaultAccountSeed("S_Entertainment expenses(Other)", "6111401"),
+        DefaultAccountSeed("S_Communication expenses(Telephone)", "6111451"),
+        DefaultAccountSeed("S_Communication expenses(Cell phone)", "6111452"),
+        DefaultAccountSeed("S_Communication expenses(Other)", "6111453"),
+        DefaultAccountSeed("S_Training Expenses(Other)", "6112201"),
+        DefaultAccountSeed("OE_Donation (Other)", "7411551"),
+        DefaultAccountSeed("M_Outsourcing processing expenses(Finished-Affiliated company)", "4532401"),
+        DefaultAccountSeed("M_Outsourcing processing expenses(Finished-General)", "4532402"),
+        DefaultAccountSeed("M_Outsourcing processing expenses(Other-Affiliated company)", "4532403"),
+        DefaultAccountSeed("M_Outsourcing processing expenses(Other-General)", "4532404"),
+        DefaultAccountSeed("M_Freight expenses(Other)", "4531858"),
+        DefaultAccountSeed("M_Freight expenses(Import-Transportation-Domestic)", "4531861"),
+        DefaultAccountSeed("M_Freight expenses(Import-Transportation-Sea)", "4531862"),
+        DefaultAccountSeed("M_Freight expenses(Import-Transportation-Air)", "4531863"),
+        DefaultAccountSeed("M_Freight expenses(Import)", "4531864"),
+        DefaultAccountSeed("S_Freight expenses(Other)", "6112106"),
+        DefaultAccountSeed("S_Freight expenses(Export-Transportation-Domestic)", "6112108"),
+        DefaultAccountSeed("S_Freight expenses(Export-Transportation-Sea)", "6112109"),
+        DefaultAccountSeed("S_Freight expenses(Export-Transportation-Air)", "6112110"),
+        DefaultAccountSeed("S_Freight expenses(Export)", "6112111"),
+        DefaultAccountSeed("S_Freight expenses(Domestic-Air)", "6112112"),
+        DefaultAccountSeed("FE_Interest expenses(Other)", "7211106"),
+        DefaultAccountSeed("Land", "1200911"),
+        DefaultAccountSeed("Buildings", "1200921"),
+        DefaultAccountSeed("Auxiliary Facilities", "1200931"),
+        DefaultAccountSeed("Structure", "1200941"),
+        DefaultAccountSeed("Machinery", "1200951"),
+        DefaultAccountSeed("Vehicles", "1200961"),
+        DefaultAccountSeed("Tools and instruments", "1200971"),
+        DefaultAccountSeed("Office equipment", "1200981"),
+        DefaultAccountSeed("Factory equipment", "1200986"),
+        DefaultAccountSeed("Furniture and Fixture", "1200990"),
+        DefaultAccountSeed("Computer& Accessories", "1200994"),
+        DefaultAccountSeed("Construction in progress", "1200999"),
+        DefaultAccountSeed("Prepaid Income Tax", "1111714"),
+        DefaultAccountSeed("Short-term advance payments in N-Foreign Curr.(Other)", "1111311"),
+        DefaultAccountSeed("Current Other Deposit", "1111375"),
+        DefaultAccountSeed("Software", "1201521")
+    )
+
+    fun getCodeForAccount(accountName: String, userAccounts: List<AccountItem> = emptyList()): String {
+        val target = accountName.trim().lowercase()
+        userAccounts.firstOrNull { it.accountName.trim().lowercase() == target }?.let {
+            return it.accountCode
+        }
+        DEFAULT_ACCOUNTS.firstOrNull { it.accountName.trim().lowercase() == target }?.let {
+            return it.accountCode
+        }
+        val prefix = accountName.replace(Regex("[^a-zA-Z]"), "").take(3).uppercase().ifBlank { "ACC" }
+        return "ACC-${prefix}001"
+    }
+}

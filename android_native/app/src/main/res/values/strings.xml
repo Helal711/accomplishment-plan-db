@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Accomplishment Plan DB</string>
+    <string name="app_subtitle">Monthly Task &amp; Budget Accomplishment Tracker</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_manage">Manage</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Authentication -->
+    <string name="auth_welcome_title">Welcome Back</string>
+    <string name="auth_create_account_title">Create Account</string>
+    <string name="auth_welcome_subtitle">Sign in to access your real-time Accomplishment Plan workspace</string>
+    <string name="auth_create_account_subtitle">Register with your email to start tracking monthly accomplishments</string>
+    <string name="auth_tab_sign_in">Sign In</string>
+    <string name="auth_tab_register">Register</string>
+    <string name="auth_label_full_name">Full Name</string>
+    <string name="auth_label_email">Email Address</string>
+    <string name="auth_label_password">Password</string>
+    <string name="auth_label_confirm_password">Confirm Password</string>
+    <string name="auth_action_sign_in">Sign In</string>
+    <string name="auth_action_register">Create Account</string>
+    <string name="auth_action_google">Continue with Google</string>
+    <string name="auth_action_forgot_password">Forgot Password?</string>
+    <string name="auth_action_sign_out">Sign Out</string>
+    <string name="auth_or_continue_with">or continue with</string>
+    <string name="auth_reset_title">Reset Password</string>
+    <string name="auth_reset_message">Enter your email address and we will send a password reset link.</string>
+    <string name="auth_reset_send">Send Reset Link</string>
+    <string name="auth_cancel">Cancel</string>
+    <string name="auth_firebase_pending_title">Firebase Configuration Pending</string>
+    <string name="auth_firebase_pending_body">Add google-services.json for package com.helal.accomplishmentplan.nativeapp in Firebase project accomplishment-plan-db to enable live authentication and Firestore sync.</string>
+
+    <!-- Phase 0-2 Foundation Workspace Placeholders -->
+    <string name="foundation_dashboard_ready_title">Workspace Foundation Ready</string>
+    <string name="foundation_dashboard_ready_body">Phases 0–2 (Design System, Firebase Auth, and Firestore Data Layer) are active. Phase 3 Dashboard UI will connect directly to these live repositories.</string>
+    <string name="foundation_manage_title">Master Data Layer Ready</string>
+    <string name="foundation_manage_body">Account_List, Status_List, and Category_List repositories with additive-only seeding are initialized. Phase 5 UI managers will plug in here.</string>
+    <string name="foundation_settings_title">Account &amp; Session</string>
+    <string name="foundation_signed_in_as">Signed in as</string>
+    <string name="cd_toggle_password">Toggle password visibility</string>
+    <string name="cd_app_logo">Accomplishment Plan DB emblem</string>
+    <string name="cd_sign_out">Sign out of account</string>
+</resources>

@@ -1,4 +1,5 @@
 import { TaskItem } from '../types';
+import { normalizeBengaliDigits } from './purchaseAmount';
 
 /**
  * Normalizes text for case-insensitive, whitespace-tolerant partial search.
@@ -16,9 +17,10 @@ export function normalizeAmountForSearch(amount: unknown): string[] {
   const raw = normalizeSearchText(amount);
   if (!raw) return [];
 
-  const noCommas = raw.replace(/,/g, '');
-  const numericOnly = noCommas.replace(/\s*tk\b/gi, '').trim();
-  const variants = new Set<string>([raw, noCommas]);
+  const asciiRaw = normalizeBengaliDigits(raw);
+  const noCommas = asciiRaw.replace(/,/g, '');
+  const numericOnly = noCommas.replace(/\s*(tk|bdt|৳)\b/gi, '').replace(/৳/g, '').trim();
+  const variants = new Set<string>([raw, asciiRaw, noCommas]);
 
   if (numericOnly) {
     variants.add(numericOnly);
@@ -40,12 +42,18 @@ export function normalizeAmountForSearch(amount: unknown): string[] {
 export function extractSearchableTaskFields(task: TaskItem, fallbackMonth?: string): string[] {
   const taskWithOptionalPaymentType = task as TaskItem & { paymentType?: string };
   const amountVariants = normalizeAmountForSearch(task.amount);
+  const purchasedAmountVariants = normalizeAmountForSearch(task.purchasedAmount);
+  const unitPriceVariants = normalizeAmountForSearch(task.unitPrice);
+  const totalQuantityVariants = normalizeAmountForSearch(task.totalQuantity);
   const taskNumStr =
     task.taskNumber !== undefined && task.taskNumber !== null ? String(task.taskNumber).trim() : '';
 
   const fields: string[] = [
     normalizeSearchText(task.description),
     ...amountVariants,
+    ...purchasedAmountVariants,
+    ...unitPriceVariants,
+    ...totalQuantityVariants,
     normalizeSearchText(task.paymentMode),
     normalizeSearchText(taskWithOptionalPaymentType.paymentType),
     normalizeSearchText(task.accountName),
@@ -83,11 +91,20 @@ export function matchesSearchQuery(
     return true;
   }
 
-  // Also check comma-stripped / TK-stripped amount query (e.g. searching "12,500 TK" or "12,500")
-  const amountQuery = normalizedQuery.replace(/,/g, '').replace(/\s*tk$/i, '').trim();
+  // Also check comma-stripped / TK-stripped / Bengali-digit numeric query across amount & purchase fields
+  const amountQuery = normalizeBengaliDigits(normalizedQuery)
+    .replace(/,/g, '')
+    .replace(/\s*(tk|bdt|৳)$/i, '')
+    .replace(/^৳\s*/i, '')
+    .trim();
   if (amountQuery && /\d/.test(amountQuery)) {
-    const amountFields = normalizeAmountForSearch(task.amount);
-    if (amountFields.some((field) => field.includes(amountQuery))) {
+    const numericFields = [
+      ...normalizeAmountForSearch(task.amount),
+      ...normalizeAmountForSearch(task.purchasedAmount),
+      ...normalizeAmountForSearch(task.unitPrice),
+      ...normalizeAmountForSearch(task.totalQuantity),
+    ];
+    if (numericFields.some((field) => field.includes(amountQuery))) {
       return true;
     }
   }

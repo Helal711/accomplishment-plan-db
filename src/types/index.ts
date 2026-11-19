@@ -16,6 +16,9 @@ export interface TaskItem {
   category?: string;
   remarks: string;
   monthYear: string;
+  unitPrice?: string;
+  totalQuantity?: string;
+  purchasedAmount?: string;
   createdAt?: any;
   updatedAt?: any;
 }

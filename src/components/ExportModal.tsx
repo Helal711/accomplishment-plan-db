@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, FileText, Printer, X, Check, Copy, Table } f
 import * as XLSX from 'xlsx';
 import { TaskItem } from '../types';
 import { downloadTasksPdf } from '../utils/pdfExport';
+import { buildExcelRows, buildCsvContent, buildSummaryText } from '../utils/exportHelpers';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -21,41 +22,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Helper to parse numeric amount for Excel and calculations
-  const parseNumericAmount = (amt: string | number | undefined): number => {
-    if (typeof amt === 'number') return Number.isFinite(amt) ? amt : 0;
-    if (!amt) return 0;
-    const cleaned = String(amt).replace(/[^0-9.-]+/g, '');
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : parsed;
-  };
-
   // 1. Export real Microsoft Excel (.xlsx) workbook using SheetJS
   const handleExportExcel = () => {
     try {
-      const excelRows = tasks.map((t, idx) => {
-        const taskNum = typeof t.taskNumber === 'number' && Number.isFinite(t.taskNumber) && t.taskNumber > 0
-          ? t.taskNumber
-          : idx + 1;
-        const numericAmount = parseNumericAmount(t.amount);
-
-        return {
-          'Task No': taskNum,
-          'Description': t.description || '',
-          'Amount (TK)': numericAmount,
-          'Payment Mode': t.paymentMode || '',
-          'Unit': t.unit || '',
-          'Priority': t.priority || '',
-          'Status': t.status || '',
-          'Expected Date': t.expectedDate || '',
-          'Account Name': t.accountName || '',
-          'Account Code': t.accountCode || '',
-          'Category': t.category || '',
-          'Remarks': t.remarks || '',
-          'Month/Year': t.monthYear || currentMonth,
-        };
-      });
-
+      const excelRows = buildExcelRows(currentMonth, tasks);
       const ws = XLSX.utils.json_to_sheet(excelRows);
 
       // Explicit column widths for professional readability
@@ -63,6 +33,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         { wch: 10 }, // Task No
         { wch: 45 }, // Description
         { wch: 15 }, // Amount (TK)
+        { wch: 14 }, // Unit Price
+        { wch: 15 }, // Total Quantity
+        { wch: 22 }, // Purchased Amount (TK)
         { wch: 15 }, // Payment Mode
         { wch: 12 }, // Unit
         { wch: 12 }, // Priority
@@ -104,53 +77,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   // 2. Export UTF-8 BOM encoded CSV with Windows-compatible CRLF line endings
   const handleExportCSV = () => {
     try {
-      const headers = [
-        'Task No',
-        'Description',
-        'Amount (TK)',
-        'Payment Mode',
-        'Unit',
-        'Priority',
-        'Status',
-        'Expected Date',
-        'Account Name',
-        'Account Code',
-        'Category',
-        'Remarks',
-        'Month/Year',
-      ];
-
-      const escapeCsv = (val: string | number | undefined | null) => {
-        if (val === null || val === undefined) return '""';
-        const str = String(val).replace(/"/g, '""');
-        return `"${str}"`;
-      };
-
-      const rows = tasks.map((t, idx) => {
-        const taskNum = typeof t.taskNumber === 'number' && Number.isFinite(t.taskNumber) && t.taskNumber > 0
-          ? t.taskNumber
-          : idx + 1;
-        const numericAmount = parseNumericAmount(t.amount);
-
-        return [
-          taskNum,
-          escapeCsv(t.description),
-          numericAmount,
-          escapeCsv(t.paymentMode),
-          escapeCsv(t.unit),
-          escapeCsv(t.priority),
-          escapeCsv(t.status),
-          escapeCsv(t.expectedDate),
-          escapeCsv(t.accountName),
-          escapeCsv(t.accountCode),
-          escapeCsv(t.category),
-          escapeCsv(t.remarks),
-          escapeCsv(t.monthYear || currentMonth),
-        ].join(',');
-      });
-
-      // Include UTF-8 BOM (\uFEFF) and Windows CRLF (\r\n) for perfect Microsoft Excel compatibility
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+      const csvContent = buildCsvContent(currentMonth, tasks);
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -168,22 +95,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   // Generate formatted summary text matching Android
-  const generateSummaryText = () => {
-    let text = `Accomplishment Plan DB - Export (Summary)\n`;
-    text += `Month: ${currentMonth} | Total Items: ${tasks.length}\n`;
-    text += `--------------------------------------------\n`;
-    tasks.forEach((task, idx) => {
-      text += `#${idx + 1}. ${task.description}\n`;
-      text += `Amount: ${task.amount} TK | ${task.paymentMode} | ${task.unit}\n`;
-      text += `Priority: ${task.priority} | Status: ${task.status}\n`;
-      text += `Account: ${task.accountName} (${task.accountCode})\n`;
-      if (task.expectedDate) text += `Expected Date: ${task.expectedDate}\n`;
-      if (task.remarks) text += `Remarks: ${task.remarks}\n`;
-      text += `\n`;
-    });
-    text += `Developer by Md Al Helal Sarkar\n`;
-    return text;
-  };
+  const generateSummaryText = () => buildSummaryText(currentMonth, tasks);
 
   const handleCopySummary = () => {
     const text = generateSummaryText();

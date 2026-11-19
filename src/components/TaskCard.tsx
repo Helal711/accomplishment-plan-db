@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Building2, ChevronDown, Trash2, Edit3 } from 'lucide-react';
 import { TaskItem, Priority } from '../types';
 import { getStatusColor } from '../utils/statusColors';
+import { formatPurchasedAmountDisplay, formatOptionalNumericText } from '../utils/purchaseAmount';
 
 export { getStatusColor };
 
@@ -41,6 +42,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       : `${task.amount} TK`
     : '0 TK';
 
+  const formattedPurchasedAmount = formatPurchasedAmountDisplay(task.purchasedAmount);
+  const formattedUnitPrice = formatOptionalNumericText(task.unitPrice);
+  const formattedTotalQuantity = formatOptionalNumericText(task.totalQuantity);
+  const purchaseBreakdown =
+    formattedUnitPrice && formattedTotalQuantity
+      ? `${formattedUnitPrice} × ${formattedTotalQuantity}`
+      : '';
+
   const statusColors = getStatusColor(task.status);
 
   return (
@@ -60,11 +69,29 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       </div>
 
       {/* Row 2: Amount | Payment Mode & Expected Date */}
-      <div className="flex items-center justify-between text-[13px] text-gray-600 my-1.5">
-        <div>
-          <span>Amount: </span>
-          <span className="font-semibold text-gray-800">{formattedAmount}</span>
-          <span className="text-gray-400"> | </span>
+      <div className="flex items-center justify-between gap-2 text-[13px] text-gray-600 my-1.5 flex-wrap">
+        <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
+          <span>
+            <span>Amount: </span>
+            <span className="font-semibold text-gray-800">{formattedAmount}</span>
+          </span>
+          {formattedPurchasedAmount && (
+            <>
+              <span className="text-gray-300">|</span>
+              <span
+                className="inline-flex items-center text-[12px] text-emerald-700 font-semibold"
+                title={purchaseBreakdown ? `Purchased: ${formattedPurchasedAmount} (${purchaseBreakdown})` : `Purchased: ${formattedPurchasedAmount}`}
+              >
+                Purchased: {formattedPurchasedAmount}
+                {purchaseBreakdown && (
+                  <span className="hidden sm:inline text-[11px] font-normal text-emerald-600 ml-1">
+                    ({purchaseBreakdown})
+                  </span>
+                )}
+              </span>
+            </>
+          )}
+          <span className="text-gray-400">|</span>
           <span>{task.paymentMode || 'Cash'}</span>
         </div>
 
