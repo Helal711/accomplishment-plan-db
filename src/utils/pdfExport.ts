@@ -2,15 +2,28 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import notoSansBengaliAssetUrl from '../assets/fonts/NotoSansBengali-Regular.ttf';
 import { TaskItem } from '../types';
 import { getStatusColor } from './statusColors';
-import {
-  formatOptionalNumericText,
-  normalizeBengaliDigits,
-  sanitizeOptionalFieldForInput,
-} from './purchaseAmount';
-import { buildTaskInlineMetadata } from './exportHelpers';
+import { normalizeBengaliDigits } from './purchaseAmount';
 
 const FONT_FILE_NAME = 'NotoSansBengali-Regular.ttf';
 const FONT_FAMILY_NAME = 'NotoBengali';
+
+export const PDF_TABLE_HEADERS = [
+  'Task No',
+  'Description',
+  'Amount (TK)',
+  'Payment Method',
+  'Purchased Amount (TK)',
+  'Supplier Name',
+  'Unit',
+  'Priority',
+  'Status',
+  'Expected Date',
+  'Account Name',
+  'Account Code',
+  'Category',
+  'Remarks',
+  'Month/Year',
+] as const;
 
 let fontRegistered = false;
 
@@ -77,7 +90,7 @@ export function resolvePdfTaskNumber(rawTaskNumber: unknown, fallbackIndex: numb
     return Math.floor(rawTaskNumber);
   }
   if (typeof rawTaskNumber === 'string') {
-    const trimmed = rawTaskNumber.trim();
+    const trimmed = normalizeBengaliDigits(rawTaskNumber).trim();
     if (trimmed) {
       const parsed = Number(trimmed);
       if (Number.isFinite(parsed) && parsed > 0) {
@@ -126,30 +139,22 @@ export function formatPdfAmount(rawAmount: unknown): string {
   return /\btk$/i.test(trimmed) ? trimmed : `${trimmed} TK`;
 }
 
+export function formatPdfOptionalAmount(rawAmount: unknown): string {
+  if (rawAmount === null || rawAmount === undefined) return '';
+  if (typeof rawAmount === 'string') {
+    const trimmed = rawAmount.trim();
+    if (!trimmed || trimmed === '-') return '';
+  }
+  const formatted = formatPdfAmount(rawAmount);
+  return formatted === '-' ? '' : formatted;
+}
+
 function getPriorityColor(priority: string): string {
   const norm = priority.trim().toLowerCase();
   if (norm === 'high') return '#DC2626';
   if (norm === 'med' || norm === 'medium') return '#D97706';
   if (norm === 'low') return '#16A34A';
   return '#111827';
-}
-
-export interface PdfTaskRowData {
-  taskNo: string;
-  description: string;
-  amount: string;
-  purchasedAmount: string;
-  supplierName: string;
-  inlinePurchaseMeta: string;
-  unit: string;
-  priority: string;
-  paymentMode: string;
-  accountName: string;
-  accountCode: string;
-  category: string;
-  status: string;
-  expectedDate: string;
-  remarks: string;
 }
 
 function pickFirstNonEmptyValue(...candidates: unknown[]): unknown {
@@ -166,25 +171,40 @@ function pickFirstNonEmptyValue(...candidates: unknown[]): unknown {
   return undefined;
 }
 
-function resolvePdfOptionalPurchasedAmount(raw: unknown): string {
-  const sanitized = sanitizeOptionalFieldForInput(raw);
-  if (!sanitized || sanitized === '-') return '';
-  const formatted = formatOptionalNumericText(sanitized);
-  return formatted && formatted !== '-' ? formatted : '';
-}
-
 function resolvePdfOptionalSupplierName(raw: unknown): string {
   const text = safePdfText(raw, '');
   return text === '-' ? '' : text;
 }
 
-export function mapTaskToPdfRow(task: TaskItem, index: number): PdfTaskRowData {
+export interface PdfTaskRowData {
+  taskNo: string;
+  description: string;
+  amount: string;
+  paymentMode: string;
+  purchasedAmount: string;
+  supplierName: string;
+  unit: string;
+  priority: string;
+  status: string;
+  expectedDate: string;
+  accountName: string;
+  accountCode: string;
+  category: string;
+  remarks: string;
+  monthYear: string;
+}
+
+export function mapTaskToPdfRow(
+  task: TaskItem,
+  index: number,
+  currentMonth = ''
+): PdfTaskRowData {
   const taskRecord = task as unknown as Record<string, unknown>;
   const formattedAmount = formatPdfAmount(taskRecord.amount);
   const paymentMode = safePdfText(
     pickFirstNonEmptyValue(taskRecord.paymentMode, taskRecord.payment_mode, taskRecord.paymentType)
   );
-  const purchasedValue = resolvePdfOptionalPurchasedAmount(
+  const purchasedAmount = formatPdfOptionalAmount(
     pickFirstNonEmptyValue(
       taskRecord.purchasedAmount,
       taskRecord.purchased_amount,
@@ -192,69 +212,44 @@ export function mapTaskToPdfRow(task: TaskItem, index: number): PdfTaskRowData {
       taskRecord.purchase_amount
     )
   );
-  const supplierValue = resolvePdfOptionalSupplierName(
+  const supplierName = resolvePdfOptionalSupplierName(
     pickFirstNonEmptyValue(
       taskRecord.supplierName,
       taskRecord.supplier_name,
       taskRecord.supplier
     )
   );
-  const hasOptionalPurchaseInfo = Boolean(purchasedValue || supplierValue);
 
   return {
-    taskNo: String(resolvePdfTaskNumber(taskRecord.taskNumber, index)),
+    taskNo: String(
+      resolvePdfTaskNumber(
+        pickFirstNonEmptyValue(taskRecord.taskNumber, taskRecord.task_number),
+        index
+      )
+    ),
     description: safePdfText(taskRecord.description),
     amount: formattedAmount,
-    purchasedAmount: purchasedValue,
-    supplierName: supplierValue,
-    inlinePurchaseMeta: hasOptionalPurchaseInfo
-      ? buildTaskInlineMetadata({
-          amount: formattedAmount !== '-' ? formattedAmount : '0 TK',
-          paymentMode: paymentMode !== '-' ? paymentMode : 'Cash',
-          purchasedAmount: purchasedValue,
-          supplierName: supplierValue,
-        })
-      : '',
+    paymentMode,
+    purchasedAmount,
+    supplierName,
     unit: safePdfText(taskRecord.unit),
     priority: safePdfText(taskRecord.priority),
-    paymentMode,
-    accountName: safePdfText(taskRecord.accountName),
-    accountCode: safePdfText(taskRecord.accountCode),
-    category: safePdfText(taskRecord.category),
     status: safePdfText(taskRecord.status),
-    expectedDate: safePdfText(taskRecord.expectedDate),
+    expectedDate: safePdfText(
+      pickFirstNonEmptyValue(taskRecord.expectedDate, taskRecord.expected_date)
+    ),
+    accountName: safePdfText(
+      pickFirstNonEmptyValue(taskRecord.accountName, taskRecord.account_name)
+    ),
+    accountCode: safePdfText(
+      pickFirstNonEmptyValue(taskRecord.accountCode, taskRecord.account_code)
+    ),
+    category: safePdfText(taskRecord.category),
     remarks: safePdfText(taskRecord.remarks),
+    monthYear: safePdfText(
+      pickFirstNonEmptyValue(taskRecord.monthYear, taskRecord.month_year, currentMonth)
+    ),
   };
-}
-
-function buildPdfInlinePurchaseSpans(mapped: PdfTaskRowData): Array<Record<string, unknown>> {
-  const amountText = mapped.amount !== '-' ? mapped.amount : '0 TK';
-  const paymentText = mapped.paymentMode !== '-' ? mapped.paymentMode : 'Cash';
-
-  const spans: Array<Record<string, unknown>> = [
-    { text: 'Amount: ', color: '#4B5563' },
-    { text: amountText, color: '#111827' },
-    { text: '  |  ', color: '#9CA3AF' },
-    { text: paymentText, color: '#111827' },
-  ];
-
-  if (mapped.purchasedAmount) {
-    spans.push(
-      { text: '  |  ', color: '#9CA3AF' },
-      { text: 'Purchased Amount (TK): ', color: '#4B5563' },
-      { text: mapped.purchasedAmount, color: '#111827' }
-    );
-  }
-
-  if (mapped.supplierName) {
-    spans.push(
-      { text: '  |  ', color: '#9CA3AF' },
-      { text: 'Supplier Name: ', color: '#4B5563' },
-      { text: mapped.supplierName, color: '#111827' }
-    );
-  }
-
-  return spans;
 }
 
 export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem[]): Record<string, unknown> {
@@ -264,135 +259,101 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
     year: 'numeric',
   });
 
-  // 12 columns inner text widths summing to 742pt + 60pt horizontal padding (2.5pt*2*12) + ~4.5pt borders = 806.5pt inside 810pt (842 - 16*2)
-  const columnWidths = [20, 132, 56, 36, 34, 38, 96, 50, 62, 60, 54, 104];
+  // A3 landscape: 1190.55pt wide - 40pt horizontal margins (20pt each) = 1150.55pt usable width.
+  // 15 column widths sum to 1038pt + 105pt horizontal padding (3.5pt * 2 * 15) + 5.6pt borders (16 * 0.35pt) = 1148.6pt.
+  const columnWidths = [32, 152, 64, 50, 68, 112, 38, 42, 62, 56, 90, 54, 56, 110, 52];
 
   const headerRow = [
-    { text: '#', style: 'tableHeader', alignment: 'center' },
-    { text: 'Description', style: 'tableHeader' },
-    { text: 'Amount', style: 'tableHeader', alignment: 'right' },
-    { text: 'Unit', style: 'tableHeader' },
-    { text: 'Priority', style: 'tableHeader', alignment: 'center' },
-    { text: 'Mode', style: 'tableHeader' },
-    { text: 'Account Name', style: 'tableHeader' },
-    { text: 'Code', style: 'tableHeader' },
-    { text: 'Category', style: 'tableHeader' },
-    { text: 'Status', style: 'tableHeader' },
-    { text: 'Exp. Date', style: 'tableHeader' },
-    { text: 'Remarks', style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[0], style: 'tableHeader', alignment: 'center' },
+    { text: PDF_TABLE_HEADERS[1], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[2], style: 'tableHeader', alignment: 'right' },
+    { text: PDF_TABLE_HEADERS[3], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[4], style: 'tableHeader', alignment: 'right' },
+    { text: PDF_TABLE_HEADERS[5], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[6], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[7], style: 'tableHeader', alignment: 'center' },
+    { text: PDF_TABLE_HEADERS[8], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[9], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[10], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[11], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[12], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[13], style: 'tableHeader' },
+    { text: PDF_TABLE_HEADERS[14], style: 'tableHeader', alignment: 'center' },
   ];
 
   const bodyRows: unknown[][] = [headerRow];
-  const metaRowIndices = new Set<number>();
 
   if (tasks.length === 0) {
     bodyRows.push([
       {
         text: `No tasks recorded for ${currentMonth}.`,
-        colSpan: 12,
+        colSpan: 15,
         alignment: 'center',
         color: '#6B7280',
-        fontSize: 9,
-        margin: [0, 14, 0, 14],
+        fontSize: 9.5,
+        margin: [0, 16, 0, 16],
       },
-      ...Array.from({ length: 11 }, () => ({})),
+      ...Array.from({ length: 14 }, () => ({})),
     ]);
   } else {
     tasks.forEach((task, index) => {
-      const mapped = mapTaskToPdfRow(task, index);
+      const mapped = mapTaskToPdfRow(task, index, currentMonth);
       const statusColor = mapped.status !== '-' ? getStatusColor(mapped.status).text : '#111827';
       const rowFill = index % 2 === 1 ? '#F8FAFC' : undefined;
-      const hasInlineMeta = Boolean(mapped.inlinePurchaseMeta);
 
-      if (hasInlineMeta) {
-        const topRowBorder = [true, true, true, false];
-        bodyRows.push([
-          { text: mapped.taskNo, style: 'cellText', alignment: 'center', fillColor: rowFill, rowSpan: 2 },
-          { text: mapped.description, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-          { text: mapped.amount, style: 'cellAmount', alignment: 'right', fillColor: rowFill, border: topRowBorder },
-          { text: mapped.unit, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-          {
-            text: mapped.priority,
-            style: 'cellText',
-            alignment: 'center',
-            color: getPriorityColor(mapped.priority),
-            fillColor: rowFill,
-            border: topRowBorder,
-          },
-          { text: mapped.paymentMode, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-          { text: mapped.accountName, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-          { text: mapped.accountCode, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-          { text: mapped.category, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-          { text: mapped.status, style: 'cellText', color: statusColor, fillColor: rowFill, border: topRowBorder },
-          { text: mapped.expectedDate, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-          { text: mapped.remarks, style: 'cellText', fillColor: rowFill, border: topRowBorder },
-        ]);
-
-        const metaRowIndex = bodyRows.length;
-        metaRowIndices.add(metaRowIndex);
-        bodyRows.push([
-          {},
-          {
-            colSpan: 11,
-            text: buildPdfInlinePurchaseSpans(mapped),
-            fontSize: 6.9,
-            fillColor: rowFill,
-            border: [true, false, true, true],
-          },
-          ...Array.from({ length: 10 }, () => ({})),
-        ]);
-      } else {
-        bodyRows.push([
-          { text: mapped.taskNo, style: 'cellText', alignment: 'center', fillColor: rowFill },
-          { text: mapped.description, style: 'cellText', fillColor: rowFill },
-          { text: mapped.amount, style: 'cellAmount', alignment: 'right', fillColor: rowFill },
-          { text: mapped.unit, style: 'cellText', fillColor: rowFill },
-          {
-            text: mapped.priority,
-            style: 'cellText',
-            alignment: 'center',
-            color: getPriorityColor(mapped.priority),
-            fillColor: rowFill,
-          },
-          { text: mapped.paymentMode, style: 'cellText', fillColor: rowFill },
-          { text: mapped.accountName, style: 'cellText', fillColor: rowFill },
-          { text: mapped.accountCode, style: 'cellText', fillColor: rowFill },
-          { text: mapped.category, style: 'cellText', fillColor: rowFill },
-          { text: mapped.status, style: 'cellText', color: statusColor, fillColor: rowFill },
-          { text: mapped.expectedDate, style: 'cellText', fillColor: rowFill },
-          { text: mapped.remarks, style: 'cellText', fillColor: rowFill },
-        ]);
-      }
+      bodyRows.push([
+        { text: mapped.taskNo, style: 'cellText', alignment: 'center', fillColor: rowFill },
+        { text: mapped.description, style: 'cellText', fillColor: rowFill },
+        { text: mapped.amount, style: 'cellAmount', alignment: 'right', fillColor: rowFill },
+        { text: mapped.paymentMode, style: 'cellText', fillColor: rowFill },
+        { text: mapped.purchasedAmount, style: 'cellAmount', alignment: 'right', fillColor: rowFill },
+        { text: mapped.supplierName, style: 'cellText', fillColor: rowFill },
+        { text: mapped.unit, style: 'cellText', fillColor: rowFill },
+        {
+          text: mapped.priority,
+          style: 'cellText',
+          alignment: 'center',
+          color: getPriorityColor(mapped.priority),
+          fillColor: rowFill,
+        },
+        { text: mapped.status, style: 'cellText', color: statusColor, fillColor: rowFill },
+        { text: mapped.expectedDate, style: 'cellText', fillColor: rowFill },
+        { text: mapped.accountName, style: 'cellText', fillColor: rowFill },
+        { text: mapped.accountCode, style: 'cellText', fillColor: rowFill },
+        { text: mapped.category, style: 'cellText', fillColor: rowFill },
+        { text: mapped.remarks, style: 'cellText', fillColor: rowFill },
+        { text: mapped.monthYear, style: 'cellText', alignment: 'center', fillColor: rowFill },
+      ]);
     });
   }
 
   return {
-    pageSize: 'A4',
+    pageSize: 'A3',
     pageOrientation: 'landscape',
-    pageMargins: [16, 56, 16, 34],
+    pageMargins: [20, 62, 20, 38],
     defaultStyle: {
       font: FONT_FAMILY_NAME,
-      fontSize: 7.5,
+      fontSize: 8,
       color: '#111827',
-      lineHeight: 1.2,
+      lineHeight: 1.22,
     },
     styles: {
       tableHeader: {
-        fontSize: 7.5,
+        fontSize: 8,
         color: '#FFFFFF',
         fillColor: '#1E3A8A',
       },
       cellText: {
-        fontSize: 7.2,
+        fontSize: 7.8,
         color: '#111827',
       },
       cellAmount: {
-        fontSize: 7.2,
+        fontSize: 7.8,
         color: '#0F172A',
       },
     },
     header: () => ({
-      margin: [16, 14, 16, 0],
+      margin: [20, 16, 20, 0],
       stack: [
         {
           columns: [
@@ -401,12 +362,12 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
               stack: [
                 {
                   text: 'Accomplishment Plan Report',
-                  fontSize: 13.5,
+                  fontSize: 15,
                   color: '#1E88E5',
                 },
                 {
                   text: 'Master Task Accomplishments & Operational Expenses',
-                  fontSize: 8.5,
+                  fontSize: 9.5,
                   color: '#6B7280',
                   margin: [0, 1, 0, 0],
                 },
@@ -416,9 +377,9 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
               width: 'auto',
               alignment: 'right',
               text: `Month/Year: ${currentMonth}  |  Total Tasks: ${tasks.length}  |  Date: ${printDate}`,
-              fontSize: 8.5,
+              fontSize: 9.5,
               color: '#4B5563',
-              margin: [0, 6, 0, 0],
+              margin: [0, 7, 0, 0],
             },
           ],
         },
@@ -427,9 +388,9 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
             {
               type: 'line',
               x1: 0,
-              y1: 5,
-              x2: 810,
-              y2: 5,
+              y1: 6,
+              x2: 1150,
+              y2: 6,
               lineWidth: 0.75,
               lineColor: '#CBD5E1',
             },
@@ -438,7 +399,7 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
       ],
     }),
     footer: (currentPage: number, pageCount: number) => ({
-      margin: [16, 4, 16, 0],
+      margin: [20, 6, 20, 0],
       stack: [
         {
           canvas: [
@@ -446,7 +407,7 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
               type: 'line',
               x1: 0,
               y1: 0,
-              x2: 810,
+              x2: 1150,
               y2: 0,
               lineWidth: 0.75,
               lineColor: '#CBD5E1',
@@ -454,26 +415,26 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
           ],
         },
         {
-          margin: [0, 5, 0, 0],
+          margin: [0, 6, 0, 0],
           columns: [
             {
               width: '*',
               text: 'Accomplishment Plan DB • Confidential Internal Report',
-              fontSize: 7.5,
+              fontSize: 8.5,
               color: '#6B7280',
             },
             {
               width: 'auto',
               alignment: 'center',
               text: `Page ${currentPage} of ${pageCount}`,
-              fontSize: 7.5,
+              fontSize: 8.5,
               color: '#374151',
             },
             {
               width: '*',
               alignment: 'right',
               text: 'Developer by Md Al Helal Sarkar',
-              fontSize: 7.5,
+              fontSize: 8.5,
               color: '#6B7280',
             },
           ],
@@ -489,17 +450,15 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
           body: bodyRows,
         },
         layout: {
-          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => {
-            if (metaRowIndices.has(i)) return 0;
-            return i === 0 || i === 1 || i === node.table.body.length ? 0.8 : 0.4;
-          },
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
+            i === 0 || i === 1 || i === node.table.body.length ? 0.8 : 0.4,
           vLineWidth: () => 0.35,
           hLineColor: (i: number) => (i <= 1 ? '#1E3A8A' : '#E2E8F0'),
           vLineColor: () => '#E2E8F0',
-          paddingLeft: () => 2.5,
-          paddingRight: () => 2.5,
-          paddingTop: (rowIndex: number) => (metaRowIndices.has(rowIndex) ? 1 : 3.5),
-          paddingBottom: (rowIndex: number) => (metaRowIndices.has(rowIndex + 1) ? 1.5 : 3.5),
+          paddingLeft: () => 3.5,
+          paddingRight: () => 3.5,
+          paddingTop: (rowIndex: number) => (rowIndex === 0 ? 5 : 4),
+          paddingBottom: (rowIndex: number) => (rowIndex === 0 ? 5 : 4),
         },
       },
     ],
