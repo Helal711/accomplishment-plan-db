@@ -46,7 +46,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     sanitizeOptionalFieldForInput(task.purchasedAmount)
   );
   const trimmedSupplierName = (task.supplierName || '').trim();
-  const hasPurchaseSummary = Boolean(purchasedAmountValue || trimmedSupplierName);
 
   const statusColors = getStatusColor(task.status);
 
@@ -66,41 +65,41 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* Row 2: Amount | Payment Mode & Expected Date */}
-      <div className="flex items-center justify-between gap-2 text-[13px] text-gray-600 my-1.5 flex-wrap">
-        <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
+      {/* Row 2: Amount | Payment Mode | Purchased Amount (TK) | Supplier Name & Expected Date */}
+      <div className="flex items-center justify-between gap-2 text-[13px] text-gray-600 my-1.5">
+        <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 min-w-0 flex-1">
           <span>
             <span>Amount: </span>
             <span className="font-semibold text-gray-800">{formattedAmount}</span>
           </span>
           <span className="text-gray-400">|</span>
           <span>{task.paymentMode || 'Cash'}</span>
+          {purchasedAmountValue && (
+            <>
+              <span className="text-gray-400">|</span>
+              <span>
+                <span>Purchased Amount (TK): </span>
+                <span className="font-semibold text-gray-800">{purchasedAmountValue}</span>
+              </span>
+            </>
+          )}
+          {trimmedSupplierName && (
+            <>
+              <span className="text-gray-400">|</span>
+              <span className="break-words">
+                <span>Supplier Name: </span>
+                <span className="font-semibold text-gray-800">{trimmedSupplierName}</span>
+              </span>
+            </>
+          )}
         </div>
 
         {task.expectedDate && (
-          <span className="text-[11px] text-gray-500 hidden sm:inline-block">
+          <span className="text-[11px] text-gray-500 hidden sm:inline-block flex-shrink-0">
             📅 {task.expectedDate}
           </span>
         )}
       </div>
-
-      {/* Optional Purchase Summary: Purchased Amount (TK) followed by Supplier Name */}
-      {hasPurchaseSummary && (
-        <div className="my-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50/60 border border-emerald-100/80 space-y-0.5 text-[12px]">
-          {purchasedAmountValue && (
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="font-semibold text-gray-700">Purchased Amount (TK):</span>
-              <span className="font-semibold text-emerald-700">{purchasedAmountValue}</span>
-            </div>
-          )}
-          {trimmedSupplierName && (
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="font-semibold text-gray-700 flex-shrink-0">Supplier Name:</span>
-              <span className="text-gray-800 break-words">{trimmedSupplierName}</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Row 3: Unit Chip, Account info & Status Pill */}
       <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-gray-100">
