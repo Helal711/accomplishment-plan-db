@@ -36,6 +36,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         { wch: 14 }, // Unit Price
         { wch: 15 }, // Total Quantity
         { wch: 22 }, // Purchased Amount (TK)
+        { wch: 24 }, // Supplier Name
         { wch: 15 }, // Payment Mode
         { wch: 12 }, // Unit
         { wch: 12 }, // Priority

@@ -128,6 +128,7 @@ export function subscribeToTasks(
           unitPrice: data.unitPrice !== undefined && data.unitPrice !== null ? String(data.unitPrice) : '',
           totalQuantity: data.totalQuantity !== undefined && data.totalQuantity !== null ? String(data.totalQuantity) : '',
           purchasedAmount: data.purchasedAmount !== undefined && data.purchasedAmount !== null ? String(data.purchasedAmount) : '',
+          supplierName: data.supplierName !== undefined && data.supplierName !== null ? String(data.supplierName) : '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         };

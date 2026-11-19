@@ -2,7 +2,6 @@ import { TaskItem } from '../types';
 import {
   parseOptionalNumber,
   formatPurchasedAmountDisplay,
-  formatOptionalNumericText,
 } from './purchaseAmount';
 
 export function parseRequiredNumericAmount(amt: string | number | undefined): number {
@@ -25,6 +24,7 @@ export interface ExcelTaskRow {
   'Unit Price': number | string;
   'Total Quantity': number | string;
   'Purchased Amount (TK)': number | string;
+  'Supplier Name': string;
   'Payment Mode': string;
   Unit: string;
   Priority: string;
@@ -51,6 +51,7 @@ export function buildExcelRows(currentMonth: string, tasks: TaskItem[]): ExcelTa
       'Unit Price': resolveOptionalExcelNumber(t.unitPrice),
       'Total Quantity': resolveOptionalExcelNumber(t.totalQuantity),
       'Purchased Amount (TK)': resolveOptionalExcelNumber(t.purchasedAmount),
+      'Supplier Name': (t.supplierName || '').trim(),
       'Payment Mode': t.paymentMode || '',
       Unit: t.unit || '',
       Priority: t.priority || '',
@@ -73,6 +74,7 @@ export function buildCsvContent(currentMonth: string, tasks: TaskItem[]): string
     'Unit Price',
     'Total Quantity',
     'Purchased Amount (TK)',
+    'Supplier Name',
     'Payment Mode',
     'Unit',
     'Priority',
@@ -108,6 +110,7 @@ export function buildCsvContent(currentMonth: string, tasks: TaskItem[]): string
       unitPriceVal === '' ? '""' : typeof unitPriceVal === 'number' ? unitPriceVal : escapeCsv(unitPriceVal),
       totalQtyVal === '' ? '""' : typeof totalQtyVal === 'number' ? totalQtyVal : escapeCsv(totalQtyVal),
       purchasedVal === '' ? '""' : typeof purchasedVal === 'number' ? purchasedVal : escapeCsv(purchasedVal),
+      escapeCsv((t.supplierName || '').trim()),
       escapeCsv(t.paymentMode),
       escapeCsv(t.unit),
       escapeCsv(t.priority),
@@ -134,17 +137,13 @@ export function buildSummaryText(currentMonth: string, tasks: TaskItem[]): strin
     text += `Amount: ${task.amount} TK | ${task.paymentMode} | ${task.unit}\n`;
 
     const purchasedDisplay = formatPurchasedAmountDisplay(task.purchasedAmount);
-    const unitPriceDisplay = formatOptionalNumericText(task.unitPrice);
-    const qtyDisplay = formatOptionalNumericText(task.totalQuantity);
+    const supplierDisplay = (task.supplierName || '').trim();
 
     if (purchasedDisplay) {
-      const breakdown = unitPriceDisplay && qtyDisplay ? ` (${unitPriceDisplay} × ${qtyDisplay})` : '';
-      text += `Purchased Amount: ${purchasedDisplay}${breakdown}\n`;
-    } else if (unitPriceDisplay || qtyDisplay) {
-      const parts: string[] = [];
-      if (unitPriceDisplay) parts.push(`Unit Price: ${unitPriceDisplay}`);
-      if (qtyDisplay) parts.push(`Qty: ${qtyDisplay}`);
-      text += `${parts.join(' | ')}\n`;
+      text += `Purchased Amount: ${purchasedDisplay}\n`;
+    }
+    if (supplierDisplay) {
+      text += `Supplier Name: ${supplierDisplay}\n`;
     }
 
     text += `Priority: ${task.priority} | Status: ${task.status}\n`;

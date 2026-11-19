@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Building2, ChevronDown, Trash2, Edit3 } from 'lucide-react';
 import { TaskItem, Priority } from '../types';
 import { getStatusColor } from '../utils/statusColors';
-import { formatPurchasedAmountDisplay, formatOptionalNumericText } from '../utils/purchaseAmount';
+import { formatOptionalNumericText, sanitizeOptionalFieldForInput } from '../utils/purchaseAmount';
 
 export { getStatusColor };
 
@@ -42,13 +42,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       : `${task.amount} TK`
     : '0 TK';
 
-  const formattedPurchasedAmount = formatPurchasedAmountDisplay(task.purchasedAmount);
-  const formattedUnitPrice = formatOptionalNumericText(task.unitPrice);
-  const formattedTotalQuantity = formatOptionalNumericText(task.totalQuantity);
-  const purchaseBreakdown =
-    formattedUnitPrice && formattedTotalQuantity
-      ? `${formattedUnitPrice} × ${formattedTotalQuantity}`
-      : '';
+  const purchasedAmountValue = formatOptionalNumericText(
+    sanitizeOptionalFieldForInput(task.purchasedAmount)
+  );
+  const trimmedSupplierName = (task.supplierName || '').trim();
+  const hasPurchaseSummary = Boolean(purchasedAmountValue || trimmedSupplierName);
 
   const statusColors = getStatusColor(task.status);
 
@@ -75,22 +73,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <span>Amount: </span>
             <span className="font-semibold text-gray-800">{formattedAmount}</span>
           </span>
-          {formattedPurchasedAmount && (
-            <>
-              <span className="text-gray-300">|</span>
-              <span
-                className="inline-flex items-center text-[12px] text-emerald-700 font-semibold"
-                title={purchaseBreakdown ? `Purchased: ${formattedPurchasedAmount} (${purchaseBreakdown})` : `Purchased: ${formattedPurchasedAmount}`}
-              >
-                Purchased: {formattedPurchasedAmount}
-                {purchaseBreakdown && (
-                  <span className="hidden sm:inline text-[11px] font-normal text-emerald-600 ml-1">
-                    ({purchaseBreakdown})
-                  </span>
-                )}
-              </span>
-            </>
-          )}
           <span className="text-gray-400">|</span>
           <span>{task.paymentMode || 'Cash'}</span>
         </div>
@@ -101,6 +83,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </span>
         )}
       </div>
+
+      {/* Optional Purchase Summary: Purchased Amount (TK) followed by Supplier Name */}
+      {hasPurchaseSummary && (
+        <div className="my-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50/60 border border-emerald-100/80 space-y-0.5 text-[12px]">
+          {purchasedAmountValue && (
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="font-semibold text-gray-700">Purchased Amount (TK):</span>
+              <span className="font-semibold text-emerald-700">{purchasedAmountValue}</span>
+            </div>
+          )}
+          {trimmedSupplierName && (
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="font-semibold text-gray-700 flex-shrink-0">Supplier Name:</span>
+              <span className="text-gray-800 break-words">{trimmedSupplierName}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Row 3: Unit Chip, Account info & Status Pill */}
       <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-gray-100">

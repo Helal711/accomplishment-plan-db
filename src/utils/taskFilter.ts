@@ -54,6 +54,7 @@ export function extractSearchableTaskFields(task: TaskItem, fallbackMonth?: stri
     ...purchasedAmountVariants,
     ...unitPriceVariants,
     ...totalQuantityVariants,
+    normalizeSearchText(task.supplierName),
     normalizeSearchText(task.paymentMode),
     normalizeSearchText(taskWithOptionalPaymentType.paymentType),
     normalizeSearchText(task.accountName),

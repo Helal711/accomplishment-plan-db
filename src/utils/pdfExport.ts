@@ -131,6 +131,7 @@ export interface PdfTaskRowData {
   description: string;
   amount: string;
   purchasedAmount: string;
+  supplierName: string;
   unit: string;
   priority: string;
   paymentMode: string;
@@ -150,6 +151,7 @@ export function mapTaskToPdfRow(task: TaskItem, index: number): PdfTaskRowData {
     description: safePdfText(taskRecord.description),
     amount: formatPdfAmount(taskRecord.amount),
     purchasedAmount: purchasedDisplay ?? '-',
+    supplierName: safePdfText(taskRecord.supplierName),
     unit: safePdfText(taskRecord.unit),
     priority: safePdfText(taskRecord.priority),
     paymentMode: safePdfText(taskRecord.paymentMode ?? taskRecord.paymentType),
@@ -224,9 +226,25 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
             }
           : { text: mapped.amount, style: 'cellAmount', alignment: 'right', fillColor: rowFill };
 
+      const descriptionCell =
+        mapped.supplierName !== '-'
+          ? {
+              stack: [
+                { text: mapped.description, style: 'cellText' },
+                {
+                  text: `Supplier: ${mapped.supplierName}`,
+                  fontSize: 6.4,
+                  color: '#374151',
+                  margin: [0, 1.5, 0, 0],
+                },
+              ],
+              fillColor: rowFill,
+            }
+          : { text: mapped.description, style: 'cellText', fillColor: rowFill };
+
       bodyRows.push([
         { text: mapped.taskNo, style: 'cellText', alignment: 'center', fillColor: rowFill },
-        { text: mapped.description, style: 'cellText', fillColor: rowFill },
+        descriptionCell,
         amountCell,
         { text: mapped.unit, style: 'cellText', fillColor: rowFill },
         {

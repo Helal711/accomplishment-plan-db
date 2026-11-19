@@ -19,6 +19,7 @@ export interface TaskItem {
   unitPrice?: string;
   totalQuantity?: string;
   purchasedAmount?: string;
+  supplierName?: string;
   createdAt?: any;
   updatedAt?: any;
 }
