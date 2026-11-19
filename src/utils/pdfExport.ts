@@ -2,7 +2,8 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import notoSansBengaliAssetUrl from '../assets/fonts/NotoSansBengali-Regular.ttf';
 import { TaskItem } from '../types';
 import { getStatusColor } from './statusColors';
-import { formatPurchasedAmountDisplay } from './purchaseAmount';
+import { formatOptionalNumericText, sanitizeOptionalFieldForInput } from './purchaseAmount';
+import { buildTaskInlineMetadata } from './exportHelpers';
 
 const FONT_FILE_NAME = 'NotoSansBengali-Regular.ttf';
 const FONT_FAMILY_NAME = 'NotoBengali';
@@ -132,6 +133,7 @@ export interface PdfTaskRowData {
   amount: string;
   purchasedAmount: string;
   supplierName: string;
+  inlinePurchaseMeta: string;
   unit: string;
   priority: string;
   paymentMode: string;
@@ -145,13 +147,26 @@ export interface PdfTaskRowData {
 
 export function mapTaskToPdfRow(task: TaskItem, index: number): PdfTaskRowData {
   const taskRecord = task as unknown as Record<string, unknown>;
-  const purchasedDisplay = formatPurchasedAmountDisplay(taskRecord.purchasedAmount);
+  const purchasedValue = formatOptionalNumericText(
+    sanitizeOptionalFieldForInput(taskRecord.purchasedAmount)
+  );
+  const supplierValue = safePdfText(taskRecord.supplierName, '');
+  const hasOptionalPurchaseInfo = Boolean(purchasedValue || supplierValue);
+
   return {
     taskNo: String(resolvePdfTaskNumber(taskRecord.taskNumber, index)),
     description: safePdfText(taskRecord.description),
     amount: formatPdfAmount(taskRecord.amount),
-    purchasedAmount: purchasedDisplay ?? '-',
-    supplierName: safePdfText(taskRecord.supplierName),
+    purchasedAmount: purchasedValue || '',
+    supplierName: supplierValue,
+    inlinePurchaseMeta: hasOptionalPurchaseInfo
+      ? buildTaskInlineMetadata({
+          amount: taskRecord.amount as string | undefined,
+          paymentMode: (taskRecord.paymentMode ?? taskRecord.paymentType) as string | undefined,
+          purchasedAmount: purchasedValue,
+          supplierName: supplierValue,
+        })
+      : '',
     unit: safePdfText(taskRecord.unit),
     priority: safePdfText(taskRecord.priority),
     paymentMode: safePdfText(taskRecord.paymentMode ?? taskRecord.paymentType),
@@ -209,43 +224,25 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
       const statusColor = mapped.status !== '-' ? getStatusColor(mapped.status).text : '#111827';
       const rowFill = index % 2 === 1 ? '#F8FAFC' : undefined;
 
-      const amountCell =
-        mapped.purchasedAmount !== '-'
-          ? {
-              stack: [
-                { text: mapped.amount, style: 'cellAmount', alignment: 'right' },
-                {
-                  text: `Pur: ${mapped.purchasedAmount}`,
-                  fontSize: 6.4,
-                  color: '#047857',
-                  alignment: 'right',
-                  margin: [0, 1, 0, 0],
-                },
-              ],
-              fillColor: rowFill,
-            }
-          : { text: mapped.amount, style: 'cellAmount', alignment: 'right', fillColor: rowFill };
-
-      const descriptionCell =
-        mapped.supplierName !== '-'
-          ? {
-              stack: [
-                { text: mapped.description, style: 'cellText' },
-                {
-                  text: `Supplier: ${mapped.supplierName}`,
-                  fontSize: 6.4,
-                  color: '#374151',
-                  margin: [0, 1.5, 0, 0],
-                },
-              ],
-              fillColor: rowFill,
-            }
-          : { text: mapped.description, style: 'cellText', fillColor: rowFill };
+      const descriptionCell = mapped.inlinePurchaseMeta
+        ? {
+            stack: [
+              { text: mapped.description, style: 'cellText' },
+              {
+                text: mapped.inlinePurchaseMeta,
+                fontSize: 6.3,
+                color: '#374151',
+                margin: [0, 1.5, 0, 0],
+              },
+            ],
+            fillColor: rowFill,
+          }
+        : { text: mapped.description, style: 'cellText', fillColor: rowFill };
 
       bodyRows.push([
         { text: mapped.taskNo, style: 'cellText', alignment: 'center', fillColor: rowFill },
         descriptionCell,
-        amountCell,
+        { text: mapped.amount, style: 'cellAmount', alignment: 'right', fillColor: rowFill },
         { text: mapped.unit, style: 'cellText', fillColor: rowFill },
         {
           text: mapped.priority,

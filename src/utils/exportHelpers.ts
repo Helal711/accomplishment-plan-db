@@ -1,7 +1,8 @@
 import { TaskItem } from '../types';
 import {
   parseOptionalNumber,
-  formatPurchasedAmountDisplay,
+  formatOptionalNumericText,
+  sanitizeOptionalFieldForInput,
 } from './purchaseAmount';
 
 export function parseRequiredNumericAmount(amt: string | number | undefined): number {
@@ -17,15 +18,44 @@ export function resolveOptionalExcelNumber(raw: string | number | undefined): nu
   return parsed !== null ? parsed : trimmed;
 }
 
+export function formatInlineAmountLabel(rawAmount: string | number | undefined): string {
+  if (rawAmount === null || rawAmount === undefined) return '0 TK';
+  const trimmed = String(rawAmount).trim();
+  if (!trimmed) return '0 TK';
+  return trimmed.toLowerCase().endsWith('tk') ? trimmed : `${trimmed} TK`;
+}
+
+/**
+ * Formats the Task Card inline metadata row in exact order:
+ * Amount: [Amount] TK | [Payment Method] | Purchased Amount (TK): [Purchased Amount] | Supplier Name: [Supplier Name]
+ * Omits empty optional fields cleanly without zero or placeholder values.
+ */
+export function buildTaskInlineMetadata(task: Partial<TaskItem> & { paymentType?: string }): string {
+  const amountText = formatInlineAmountLabel(task.amount);
+  const paymentMethod = String(task.paymentMode ?? task.paymentType ?? 'Cash').trim() || 'Cash';
+  const purchasedAmountValue = formatOptionalNumericText(
+    sanitizeOptionalFieldForInput(task.purchasedAmount)
+  );
+  const supplierName = String(task.supplierName ?? '').trim();
+
+  const parts: string[] = [`Amount: ${amountText}`, paymentMethod];
+  if (purchasedAmountValue) {
+    parts.push(`Purchased Amount (TK): ${purchasedAmountValue}`);
+  }
+  if (supplierName) {
+    parts.push(`Supplier Name: ${supplierName}`);
+  }
+
+  return parts.join(' | ');
+}
+
 export interface ExcelTaskRow {
   'Task No': number;
   Description: string;
   'Amount (TK)': number;
-  'Unit Price': number | string;
-  'Total Quantity': number | string;
+  'Payment Method': string;
   'Purchased Amount (TK)': number | string;
   'Supplier Name': string;
-  'Payment Mode': string;
   Unit: string;
   Priority: string;
   Status: string;
@@ -48,11 +78,9 @@ export function buildExcelRows(currentMonth: string, tasks: TaskItem[]): ExcelTa
       'Task No': taskNum,
       Description: t.description || '',
       'Amount (TK)': parseRequiredNumericAmount(t.amount),
-      'Unit Price': resolveOptionalExcelNumber(t.unitPrice),
-      'Total Quantity': resolveOptionalExcelNumber(t.totalQuantity),
+      'Payment Method': t.paymentMode || '',
       'Purchased Amount (TK)': resolveOptionalExcelNumber(t.purchasedAmount),
       'Supplier Name': (t.supplierName || '').trim(),
-      'Payment Mode': t.paymentMode || '',
       Unit: t.unit || '',
       Priority: t.priority || '',
       Status: t.status || '',
@@ -71,11 +99,9 @@ export function buildCsvContent(currentMonth: string, tasks: TaskItem[]): string
     'Task No',
     'Description',
     'Amount (TK)',
-    'Unit Price',
-    'Total Quantity',
+    'Payment Method',
     'Purchased Amount (TK)',
     'Supplier Name',
-    'Payment Mode',
     'Unit',
     'Priority',
     'Status',
@@ -99,19 +125,15 @@ export function buildCsvContent(currentMonth: string, tasks: TaskItem[]): string
         ? t.taskNumber
         : idx + 1;
     const numericAmount = parseRequiredNumericAmount(t.amount);
-    const unitPriceVal = resolveOptionalExcelNumber(t.unitPrice);
-    const totalQtyVal = resolveOptionalExcelNumber(t.totalQuantity);
     const purchasedVal = resolveOptionalExcelNumber(t.purchasedAmount);
 
     return [
       taskNum,
       escapeCsv(t.description),
       numericAmount,
-      unitPriceVal === '' ? '""' : typeof unitPriceVal === 'number' ? unitPriceVal : escapeCsv(unitPriceVal),
-      totalQtyVal === '' ? '""' : typeof totalQtyVal === 'number' ? totalQtyVal : escapeCsv(totalQtyVal),
+      escapeCsv(t.paymentMode),
       purchasedVal === '' ? '""' : typeof purchasedVal === 'number' ? purchasedVal : escapeCsv(purchasedVal),
       escapeCsv((t.supplierName || '').trim()),
-      escapeCsv(t.paymentMode),
       escapeCsv(t.unit),
       escapeCsv(t.priority),
       escapeCsv(t.status),
@@ -134,19 +156,8 @@ export function buildSummaryText(currentMonth: string, tasks: TaskItem[]): strin
   text += `--------------------------------------------\n`;
   tasks.forEach((task, idx) => {
     text += `#${idx + 1}. ${task.description}\n`;
-    text += `Amount: ${task.amount} TK | ${task.paymentMode} | ${task.unit}\n`;
-
-    const purchasedDisplay = formatPurchasedAmountDisplay(task.purchasedAmount);
-    const supplierDisplay = (task.supplierName || '').trim();
-
-    if (purchasedDisplay) {
-      text += `Purchased Amount: ${purchasedDisplay}\n`;
-    }
-    if (supplierDisplay) {
-      text += `Supplier Name: ${supplierDisplay}\n`;
-    }
-
-    text += `Priority: ${task.priority} | Status: ${task.status}\n`;
+    text += `${buildTaskInlineMetadata(task)}\n`;
+    text += `Unit: ${task.unit} | Priority: ${task.priority} | Status: ${task.status}\n`;
     text += `Account: ${task.accountName} (${task.accountCode})\n`;
     if (task.expectedDate) text += `Expected Date: ${task.expectedDate}\n`;
     if (task.remarks) text += `Remarks: ${task.remarks}\n`;

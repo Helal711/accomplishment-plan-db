@@ -33,11 +33,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         { wch: 10 }, // Task No
         { wch: 45 }, // Description
         { wch: 15 }, // Amount (TK)
-        { wch: 14 }, // Unit Price
-        { wch: 15 }, // Total Quantity
+        { wch: 15 }, // Payment Method
         { wch: 22 }, // Purchased Amount (TK)
         { wch: 24 }, // Supplier Name
-        { wch: 15 }, // Payment Mode
         { wch: 12 }, // Unit
         { wch: 12 }, // Priority
         { wch: 15 }, // Status
