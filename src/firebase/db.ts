@@ -102,6 +102,15 @@ export function subscribeToTasks(
   return onSnapshot(
     q,
     (snapshot) => {
+      const firstNonEmptyString = (...candidates: unknown[]): string => {
+        for (const candidate of candidates) {
+          if (candidate === null || candidate === undefined) continue;
+          const text = String(candidate).trim();
+          if (text.length > 0) return text;
+        }
+        return '';
+      };
+
       const items: TaskItem[] = snapshot.docs.map((docSnap) => {
         const data = docSnap.data();
         const rawTaskNum = data.taskNumber;
@@ -115,7 +124,7 @@ export function subscribeToTasks(
           taskNumber: parsedTaskNumber,
           description: data.description || '',
           amount: data.amount || '',
-          paymentMode: data.paymentMode || 'Cash',
+          paymentMode: firstNonEmptyString(data.paymentMode, data.payment_mode, data.paymentType) || 'Cash',
           unit: data.unit || 'Unit-1',
           priority: data.priority || 'High',
           status: data.status || 'Draft Ready',
@@ -125,10 +134,19 @@ export function subscribeToTasks(
           category: data.category || '',
           remarks: data.remarks || '',
           monthYear: data.monthYear || monthYear,
-          unitPrice: data.unitPrice !== undefined && data.unitPrice !== null ? String(data.unitPrice) : '',
-          totalQuantity: data.totalQuantity !== undefined && data.totalQuantity !== null ? String(data.totalQuantity) : '',
-          purchasedAmount: data.purchasedAmount !== undefined && data.purchasedAmount !== null ? String(data.purchasedAmount) : '',
-          supplierName: data.supplierName !== undefined && data.supplierName !== null ? String(data.supplierName) : '',
+          unitPrice: firstNonEmptyString(data.unitPrice, data.unit_price),
+          totalQuantity: firstNonEmptyString(data.totalQuantity, data.total_quantity),
+          purchasedAmount: firstNonEmptyString(
+            data.purchasedAmount,
+            data.purchased_amount,
+            data.purchaseAmount,
+            data.purchase_amount
+          ),
+          supplierName: firstNonEmptyString(
+            data.supplierName,
+            data.supplier_name,
+            data.supplier
+          ),
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         };

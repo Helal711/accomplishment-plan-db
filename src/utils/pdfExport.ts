@@ -2,7 +2,11 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import notoSansBengaliAssetUrl from '../assets/fonts/NotoSansBengali-Regular.ttf';
 import { TaskItem } from '../types';
 import { getStatusColor } from './statusColors';
-import { formatOptionalNumericText, sanitizeOptionalFieldForInput } from './purchaseAmount';
+import {
+  formatOptionalNumericText,
+  normalizeBengaliDigits,
+  sanitizeOptionalFieldForInput,
+} from './purchaseAmount';
 import { buildTaskInlineMetadata } from './exportHelpers';
 
 const FONT_FILE_NAME = 'NotoSansBengali-Regular.ttf';
@@ -104,7 +108,10 @@ export function formatPdfAmount(rawAmount: unknown): string {
   const trimmed = String(rawAmount).trim();
   if (!trimmed) return '-';
 
-  const withoutTk = trimmed.replace(/\s*tk$/i, '').trim();
+  const withoutTk = normalizeBengaliDigits(trimmed)
+    .replace(/\s*(tk|bdt|৳)\s*$/i, '')
+    .replace(/^৳\s*/i, '')
+    .trim();
   const numericCandidate = withoutTk.replace(/,/g, '');
   if (/^-?\d+(\.\d+)?$/.test(numericCandidate)) {
     const parsed = Number(numericCandidate);
@@ -145,6 +152,20 @@ export interface PdfTaskRowData {
   remarks: string;
 }
 
+function pickFirstNonEmptyValue(...candidates: unknown[]): unknown {
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined) continue;
+    if (typeof candidate === 'number') {
+      if (Number.isFinite(candidate)) return candidate;
+      continue;
+    }
+    if (String(candidate).trim().length > 0) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
 function resolvePdfOptionalPurchasedAmount(raw: unknown): string {
   const sanitized = sanitizeOptionalFieldForInput(raw);
   if (!sanitized || sanitized === '-') return '';
@@ -160,12 +181,23 @@ function resolvePdfOptionalSupplierName(raw: unknown): string {
 export function mapTaskToPdfRow(task: TaskItem, index: number): PdfTaskRowData {
   const taskRecord = task as unknown as Record<string, unknown>;
   const formattedAmount = formatPdfAmount(taskRecord.amount);
-  const paymentMode = safePdfText(taskRecord.paymentMode ?? taskRecord.paymentType);
+  const paymentMode = safePdfText(
+    pickFirstNonEmptyValue(taskRecord.paymentMode, taskRecord.payment_mode, taskRecord.paymentType)
+  );
   const purchasedValue = resolvePdfOptionalPurchasedAmount(
-    taskRecord.purchasedAmount ?? taskRecord.purchased_amount
+    pickFirstNonEmptyValue(
+      taskRecord.purchasedAmount,
+      taskRecord.purchased_amount,
+      taskRecord.purchaseAmount,
+      taskRecord.purchase_amount
+    )
   );
   const supplierValue = resolvePdfOptionalSupplierName(
-    taskRecord.supplierName ?? taskRecord.supplier_name ?? taskRecord.supplier
+    pickFirstNonEmptyValue(
+      taskRecord.supplierName,
+      taskRecord.supplier_name,
+      taskRecord.supplier
+    )
   );
   const hasOptionalPurchaseInfo = Boolean(purchasedValue || supplierValue);
 
@@ -263,7 +295,7 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
         fontSize: 9,
         margin: [0, 14, 0, 14],
       },
-      ...Array(11).fill({}),
+      ...Array.from({ length: 11 }, () => ({})),
     ]);
   } else {
     tasks.forEach((task, index) => {
@@ -307,7 +339,7 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
             fillColor: rowFill,
             border: [true, false, true, true],
           },
-          ...Array(10).fill({}),
+          ...Array.from({ length: 10 }, () => ({})),
         ]);
       } else {
         bodyRows.push([
@@ -457,8 +489,10 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
           body: bodyRows,
         },
         layout: {
-          hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-            i === 0 || i === 1 || i === node.table.body.length ? 0.8 : 0.4,
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => {
+            if (metaRowIndices.has(i)) return 0;
+            return i === 0 || i === 1 || i === node.table.body.length ? 0.8 : 0.4;
+          },
           vLineWidth: () => 0.35,
           hLineColor: (i: number) => (i <= 1 ? '#1E3A8A' : '#E2E8F0'),
           vLineColor: () => '#E2E8F0',
