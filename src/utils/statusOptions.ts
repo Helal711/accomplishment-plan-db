@@ -61,7 +61,7 @@ export function buildSelectableTaskStatuses(candidates: readonly (string | undef
 }
 
 export const DONE_STATUS_CHANGE_CONFIRM_MESSAGE =
-  'This task is already marked as Done. Are you sure you want to change its status?';
+  'Need Confirmation:\nThis task is already marked as Done. Are you sure you want to change its status?';
 
 export function isDoneStatus(statusName: string | undefined | null): boolean {
   return normalizeStatusKey(statusName) === 'done';
