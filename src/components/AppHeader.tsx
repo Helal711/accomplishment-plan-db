@@ -13,18 +13,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getStatusColor } from '../utils/statusColors';
+import {
+  HIDDEN_DASHBOARD_SUMMARY_STATUSES,
+  isHiddenDashboardSummaryStatus,
+} from '../utils/statusOptions';
 
-export const HIDDEN_DASHBOARD_SUMMARY_STATUSES: ReadonlySet<string> = new Set([
-  'hold from md team',
-  'cancel',
-  'settlement',
-  'cs in accounts',
-]);
-
-export function isHiddenDashboardSummaryStatus(statusName: string): boolean {
-  const normalized = (statusName || '').trim().replace(/\s+/g, ' ').toLowerCase();
-  return HIDDEN_DASHBOARD_SUMMARY_STATUSES.has(normalized);
-}
+export { HIDDEN_DASHBOARD_SUMMARY_STATUSES, isHiddenDashboardSummaryStatus };
 
 export function filterVisibleDashboardStatusCounts<T extends { name: string }>(
   statusCounts: T[]

@@ -42,6 +42,11 @@ import { DeveloperFooter } from '../components/DeveloperFooter';
 import { getSavedMonthForUser } from '../utils/monthUtils';
 import { getStatusColor } from '../utils/statusColors';
 import {
+  buildSelectableTaskStatuses,
+  isRemovedTaskStatus,
+  normalizeStatusKey,
+} from '../utils/statusOptions';
+import {
   initPurchaseAmountState,
   applyUnitPriceChange,
   applyTotalQuantityChange,
@@ -143,22 +148,20 @@ export const TaskFormPage: React.FC = () => {
     );
   }, [combinedAccounts, accountSearchQuery]);
 
-  // Combine and sort statuses A-Z (case-insensitive) for display
+  // Combine and sort selectable statuses A-Z (case-insensitive), excluding removed options
   const combinedStatusNames = useMemo(() => {
-    const seen = new Set<string>();
-    const list: string[] = [];
-    const allCandidates = [...DEFAULT_STATUSES, 'Hold from MR Team', ...statuses.map((s) => s.statusName), status];
-    for (const st of allCandidates) {
-      const trimmed = (st || '').trim();
-      if (!trimmed) continue;
-      const key = trimmed.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        list.push(trimmed);
-      }
-    }
-    return list.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const candidates = [
+      ...DEFAULT_STATUSES,
+      'Hold from MR Team',
+      ...statuses.map((s) => s.statusName),
+      ...(!isRemovedTaskStatus(status) ? [status] : []),
+    ];
+    return buildSelectableTaskStatuses(candidates).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: 'base' })
+    );
   }, [statuses, status]);
+
+  const isHistoricalRemovedStatus = !isNew && isRemovedTaskStatus(status);
 
   // Combine and sort categories A-Z (case-insensitive) for display
   const combinedCategoryNames = useMemo(() => {
@@ -196,6 +199,16 @@ export const TaskFormPage: React.FC = () => {
       );
       if (!accountExists && combinedAccounts.length > 0) {
         setError(`Selected account "${accountName}" does not exist in your Account List. Please select a valid account.`);
+        setSaving(false);
+        return;
+      }
+
+      // Prevent selecting removed statuses for new tasks or changing an existing task into a removed status
+      const originalStatusKey = normalizeStatusKey(initialTask?.status);
+      const currentStatusKey = normalizeStatusKey(status);
+      const isPreservingHistoricalStatus = !isNew && originalStatusKey === currentStatusKey;
+      if (isRemovedTaskStatus(status) && !isPreservingHistoricalStatus) {
+        setError('Selected task status is no longer available. Please choose another status.');
         setSaving(false);
         return;
       }
@@ -661,8 +674,13 @@ export const TaskFormPage: React.FC = () => {
                         style={{ color: activeColors.dot }}
                       />
                       <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
+                        value={isHistoricalRemovedStatus ? '' : status}
+                        onChange={(e) => {
+                          const nextVal = e.target.value;
+                          if (nextVal && !isRemovedTaskStatus(nextVal)) {
+                            setStatus(nextVal);
+                          }
+                        }}
                         style={{
                           backgroundColor: activeColors.bg,
                           color: activeColors.text,
@@ -670,6 +688,11 @@ export const TaskFormPage: React.FC = () => {
                         }}
                         className="w-full pl-10 pr-3.5 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent font-semibold transition-colors"
                       >
+                        {isHistoricalRemovedStatus && (
+                          <option value="" disabled hidden>
+                            Keep existing status (select new status to change)
+                          </option>
+                        )}
                         {combinedStatusNames.map((st) => {
                           const optColors = getStatusColor(st);
                           return (

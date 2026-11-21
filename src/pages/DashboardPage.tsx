@@ -36,6 +36,7 @@ import {
   saveCustomMonthForUser,
 } from '../utils/monthUtils';
 import { filterTasks } from '../utils/taskFilter';
+import { buildSelectableTaskStatuses, isRemovedTaskStatus } from '../utils/statusOptions';
 
 function buildAvailableMonths(uid: string | undefined | null, activeMonth: string): string[] {
   const custom = getCustomMonthsForUser(uid);
@@ -148,21 +149,10 @@ export const DashboardPage: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Combined status names (preserving order, case-insensitive deduplication)
+  // Combined selectable status names (preserving order, case-insensitive deduplication, excluding removed options)
   const availableStatusNames = useMemo(() => {
     const custom = statuses.map((s) => s.statusName);
-    const seen = new Set<string>();
-    const combined: string[] = [];
-    for (const st of [...DEFAULT_STATUSES, 'Hold from MR Team', ...custom]) {
-      const trimmed = (st || '').trim();
-      if (!trimmed) continue;
-      const key = trimmed.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        combined.push(trimmed);
-      }
-    }
-    return combined;
+    return buildSelectableTaskStatuses([...DEFAULT_STATUSES, 'Hold from MR Team', ...custom]);
   }, [statuses]);
 
   // Filter tasks by both status filter and multi-field search query
@@ -185,6 +175,7 @@ export const DashboardPage: React.FC = () => {
   }, [availableStatusNames, tasks]);
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
+    if (isRemovedTaskStatus(newStatus)) return;
     try {
       await quickUpdateTaskStatus(taskId, newStatus);
     } catch (err) {

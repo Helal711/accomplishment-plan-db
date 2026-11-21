@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sliders, Plus, Trash2, X } from 'lucide-react';
 import { StatusItem, DEFAULT_STATUSES } from '../types';
 import { getStatusColor } from '../utils/statusColors';
+import { isRemovedTaskStatus } from '../utils/statusOptions';
 
 interface StatusManagerModalProps {
   isOpen: boolean;
@@ -24,16 +25,27 @@ export const StatusManagerModal: React.FC<StatusManagerModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Merge defaults and custom statuses for display
+  const visibleCustomStatuses = statuses.filter(
+    (s) => !s.isDefault && !isRemovedTaskStatus(s.statusName)
+  );
+
+  // Merge defaults and visible custom statuses for duplicate validation
   const allStatusNames = [
     ...DEFAULT_STATUSES,
-    ...statuses.filter((s) => !DEFAULT_STATUSES.map(d => d.toLowerCase()).includes(s.statusName.toLowerCase())).map((s) => s.statusName),
+    ...visibleCustomStatuses
+      .filter((s) => !DEFAULT_STATUSES.map((d) => d.toLowerCase()).includes(s.statusName.toLowerCase()))
+      .map((s) => s.statusName),
   ];
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     const val = newStatus.trim();
     if (!val) return;
+
+    if (isRemovedTaskStatus(val)) {
+      setError('This status option has been removed and cannot be added.');
+      return;
+    }
 
     if (allStatusNames.map((s) => s.toLowerCase()).includes(val.toLowerCase())) {
       setError('Status already exists');
@@ -109,16 +121,14 @@ export const StatusManagerModal: React.FC<StatusManagerModalProps> = ({
 
           {/* Custom Statuses */}
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-3">
-            Custom Statuses ({statuses.filter((s) => !s.isDefault).length})
+            Custom Statuses ({visibleCustomStatuses.length})
           </div>
 
-          {statuses.filter((s) => !s.isDefault).length === 0 ? (
+          {visibleCustomStatuses.length === 0 ? (
             <p className="text-xs text-gray-400 italic px-1">No custom statuses yet.</p>
           ) : (
             <div className="space-y-1.5">
-              {statuses
-                .filter((s) => !s.isDefault)
-                .map((st) => {
+              {visibleCustomStatuses.map((st) => {
                   const colors = getStatusColor(st.statusName);
                   return (
                     <div
