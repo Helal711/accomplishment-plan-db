@@ -19,7 +19,7 @@ import {
   deleteCategory,
 } from '../firebase/db';
 import { TaskItem, AccountItem, StatusItem, CategoryItem, DEFAULT_STATUSES, DEFAULT_MONTHS } from '../types';
-import { AppHeader } from '../components/AppHeader';
+import { AppHeader, filterVisibleDashboardStatusCounts } from '../components/AppHeader';
 import { TaskCard } from '../components/TaskCard';
 import { MonthSelectorModal } from '../components/MonthSelectorModal';
 import { StatusManagerModal } from '../components/StatusManagerModal';
@@ -173,14 +173,15 @@ export const DashboardPage: React.FC = () => {
   const totalCount = tasks.length;
   const pendingCount = tasks.filter((t) => (t.status || '').toLowerCase() !== 'done').length;
 
-  // Dynamically compute counts for all available statuses in the selected month
+  // Dynamically compute counts for all visible dashboard summary statuses in the selected month
   const statusCounts = useMemo(() => {
-    return availableStatusNames.map((st) => {
+    const allStatusCounts = availableStatusNames.map((st) => {
       const count = tasks.filter(
         (t) => (t.status || '').toLowerCase().trim() === st.toLowerCase().trim()
       ).length;
       return { name: st, count };
     });
+    return filterVisibleDashboardStatusCounts(allStatusCounts);
   }, [availableStatusNames, tasks]);
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {

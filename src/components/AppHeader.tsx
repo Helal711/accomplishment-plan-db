@@ -14,6 +14,24 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { getStatusColor } from '../utils/statusColors';
 
+export const HIDDEN_DASHBOARD_SUMMARY_STATUSES: ReadonlySet<string> = new Set([
+  'hold from md team',
+  'cancel',
+  'settlement',
+  'cs in accounts',
+]);
+
+export function isHiddenDashboardSummaryStatus(statusName: string): boolean {
+  const normalized = (statusName || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return HIDDEN_DASHBOARD_SUMMARY_STATUSES.has(normalized);
+}
+
+export function filterVisibleDashboardStatusCounts<T extends { name: string }>(
+  statusCounts: T[]
+): T[] {
+  return statusCounts.filter((st) => !isHiddenDashboardSummaryStatus(st.name));
+}
+
 export interface StatusSummaryButtonAppearance {
   hasTasks: boolean;
   backgroundColor: string;
@@ -101,6 +119,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const visibleStatusCounts = filterVisibleDashboardStatusCounts(statusCounts);
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-sm">
@@ -280,8 +300,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </span>
           </button>
 
-          {statusCounts.length > 0 ? (
-            statusCounts.map((st, idx) => {
+          {visibleStatusCounts.length > 0 ? (
+            visibleStatusCounts.map((st, idx) => {
               const isActive =
                 !!selectedStatus &&
                 selectedStatus.trim().toLowerCase() === st.name.trim().toLowerCase();
