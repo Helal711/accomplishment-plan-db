@@ -36,7 +36,12 @@ import {
   saveCustomMonthForUser,
 } from '../utils/monthUtils';
 import { filterTasks } from '../utils/taskFilter';
-import { buildSelectableTaskStatuses, isRemovedTaskStatus } from '../utils/statusOptions';
+import {
+  buildSelectableTaskStatuses,
+  confirmDoneStatusChange,
+  isRemovedTaskStatus,
+  normalizeStatusKey,
+} from '../utils/statusOptions';
 
 function buildAvailableMonths(uid: string | undefined | null, activeMonth: string): string[] {
   const custom = getCustomMonthsForUser(uid);
@@ -152,7 +157,7 @@ export const DashboardPage: React.FC = () => {
   // Combined selectable status names (preserving order, case-insensitive deduplication, excluding removed options)
   const availableStatusNames = useMemo(() => {
     const custom = statuses.map((s) => s.statusName);
-    return buildSelectableTaskStatuses([...DEFAULT_STATUSES, 'Hold from MR Team', ...custom]);
+    return buildSelectableTaskStatuses([...DEFAULT_STATUSES, ...custom]);
   }, [statuses]);
 
   // Filter tasks by both status filter and multi-field search query
@@ -174,12 +179,20 @@ export const DashboardPage: React.FC = () => {
     return filterVisibleDashboardStatusCounts(allStatusCounts);
   }, [availableStatusNames, tasks]);
 
-  const handleStatusChange = async (taskId: string, newStatus: string) => {
+  const handleStatusChange = async (
+    taskId: string,
+    currentStatus: string,
+    newStatus: string
+  ) => {
     if (isRemovedTaskStatus(newStatus)) return;
+    if (normalizeStatusKey(currentStatus) === normalizeStatusKey(newStatus)) return;
+    if (!confirmDoneStatusChange(currentStatus, newStatus)) return;
+
     try {
       await quickUpdateTaskStatus(taskId, newStatus);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to change status:', err);
+      window.alert(err?.message || 'Failed to update task status. Please try again.');
     }
   };
 
@@ -281,7 +294,9 @@ export const DashboardPage: React.FC = () => {
                   serialNumber={task.taskNumber}
                   availableStatuses={availableStatusNames}
                   onCardClick={() => navigate(`/tasks/${task.id}`, { state: { task } })}
-                  onStatusChange={(newStatus) => handleStatusChange(task.id, newStatus)}
+                  onStatusChange={(newStatus) =>
+                    handleStatusChange(task.id, task.status, newStatus)
+                  }
                   onDeleteClick={() => setTaskToDelete(task)}
                 />
               ))}

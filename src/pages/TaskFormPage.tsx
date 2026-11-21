@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   addTask,
   updateTask,
+  quickUpdateTaskStatus,
   deleteTask,
   subscribeToAccounts,
   subscribeToStatuses,
@@ -43,8 +44,10 @@ import { getSavedMonthForUser } from '../utils/monthUtils';
 import { getStatusColor } from '../utils/statusColors';
 import {
   buildSelectableTaskStatuses,
+  confirmDoneStatusChange,
   isRemovedTaskStatus,
   normalizeStatusKey,
+  requiresDoneStatusChangeConfirmation,
 } from '../utils/statusOptions';
 import {
   initPurchaseAmountState,
@@ -84,6 +87,10 @@ export const TaskFormPage: React.FC = () => {
     initialTask?.accountCode || '4532154'
   );
   const [status, setStatus] = useState(initialTask?.status || 'Draft Ready');
+  const [persistedStatus, setPersistedStatus] = useState(
+    !isNew ? initialTask?.status || '' : ''
+  );
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [category, setCategory] = useState(initialTask?.category || 'Materials');
   const [remarks, setRemarks] = useState(initialTask?.remarks || '');
   const [monthYear] = useState(initialTask?.monthYear || initialMonth);
@@ -152,7 +159,6 @@ export const TaskFormPage: React.FC = () => {
   const combinedStatusNames = useMemo(() => {
     const candidates = [
       ...DEFAULT_STATUSES,
-      'Hold from MR Team',
       ...statuses.map((s) => s.statusName),
       ...(!isRemovedTaskStatus(status) ? [status] : []),
     ];
@@ -172,6 +178,35 @@ export const TaskFormPage: React.FC = () => {
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [categories, category]);
+
+  const handleStatusDropdownChange = async (nextVal: string) => {
+    if (!nextVal || isRemovedTaskStatus(nextVal)) return;
+    if (normalizeStatusKey(nextVal) === normalizeStatusKey(status)) return;
+
+    if (!isNew && taskId && requiresDoneStatusChangeConfirmation(persistedStatus, nextVal)) {
+      if (!confirmDoneStatusChange(persistedStatus, nextVal)) {
+        return;
+      }
+
+      try {
+        setUpdatingStatus(true);
+        setError(null);
+        await quickUpdateTaskStatus(taskId, nextVal);
+        setStatus(nextVal);
+        setPersistedStatus(nextVal);
+      } catch (err: any) {
+        console.error('Error updating task status:', err);
+        const message = err?.message || 'Failed to update task status. Please try again.';
+        setError(message);
+        window.alert(message);
+      } finally {
+        setUpdatingStatus(false);
+      }
+      return;
+    }
+
+    setStatus(nextVal);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +244,12 @@ export const TaskFormPage: React.FC = () => {
       const isPreservingHistoricalStatus = !isNew && originalStatusKey === currentStatusKey;
       if (isRemovedTaskStatus(status) && !isPreservingHistoricalStatus) {
         setError('Selected task status is no longer available. Please choose another status.');
+        setSaving(false);
+        return;
+      }
+
+      // Safety check: confirm before saving if persisted Done status is being changed
+      if (!isNew && !confirmDoneStatusChange(persistedStatus, status)) {
         setSaving(false);
         return;
       }
@@ -258,6 +299,7 @@ export const TaskFormPage: React.FC = () => {
           category,
           remarks: remarks.trim(),
         });
+        setPersistedStatus(status);
         setSuccessToast('Task Updated Successfully!');
       }
 
@@ -675,11 +717,9 @@ export const TaskFormPage: React.FC = () => {
                       />
                       <select
                         value={isHistoricalRemovedStatus ? '' : status}
+                        disabled={updatingStatus || saving}
                         onChange={(e) => {
-                          const nextVal = e.target.value;
-                          if (nextVal && !isRemovedTaskStatus(nextVal)) {
-                            setStatus(nextVal);
-                          }
+                          void handleStatusDropdownChange(e.target.value);
                         }}
                         style={{
                           backgroundColor: activeColors.bg,

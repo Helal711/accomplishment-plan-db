@@ -13,6 +13,7 @@ export function normalizeStatusKey(statusName: string | undefined | null): strin
  */
 export const REMOVED_TASK_STATUSES: ReadonlySet<string> = new Set([
   'hold from md team',
+  'hold from mr team',
   'cancel',
   'settlement',
   'cs ready',
@@ -24,6 +25,7 @@ export const REMOVED_TASK_STATUSES: ReadonlySet<string> = new Set([
  */
 export const HIDDEN_DASHBOARD_SUMMARY_STATUSES: ReadonlySet<string> = new Set([
   'hold from md team',
+  'hold from mr team',
   'cancel',
   'settlement',
   'cs in accounts',
@@ -57,3 +59,31 @@ export function buildSelectableTaskStatuses(candidates: readonly (string | undef
 
   return result;
 }
+
+export const DONE_STATUS_CHANGE_CONFIRM_MESSAGE =
+  'This task is already marked as Done. Are you sure you want to change its status?';
+
+export function isDoneStatus(statusName: string | undefined | null): boolean {
+  return normalizeStatusKey(statusName) === 'done';
+}
+
+export function requiresDoneStatusChangeConfirmation(
+  currentStatus: string | undefined | null,
+  nextStatus: string | undefined | null
+): boolean {
+  if (!isDoneStatus(currentStatus)) return false;
+  const nextKey = normalizeStatusKey(nextStatus);
+  return nextKey.length > 0 && nextKey !== 'done';
+}
+
+export function confirmDoneStatusChange(
+  currentStatus: string | undefined | null,
+  nextStatus: string | undefined | null,
+  confirmFn: (message: string) => boolean = (msg) => window.confirm(msg)
+): boolean {
+  if (!requiresDoneStatusChangeConfirmation(currentStatus, nextStatus)) {
+    return true;
+  }
+  return confirmFn(DONE_STATUS_CHANGE_CONFIRM_MESSAGE);
+}
+
