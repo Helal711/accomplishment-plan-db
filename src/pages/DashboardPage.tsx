@@ -27,6 +27,7 @@ import { AccountManagerModal } from '../components/AccountManagerModal';
 import { CategoryManagerModal } from '../components/CategoryManagerModal';
 import { ExportModal } from '../components/ExportModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { DoneStatusConfirmDialog } from '../components/DoneStatusConfirmDialog';
 import { DeveloperFooter } from '../components/DeveloperFooter';
 import {
   getCurrentMonthYear,
@@ -38,9 +39,9 @@ import {
 import { filterTasks } from '../utils/taskFilter';
 import {
   buildSelectableTaskStatuses,
-  confirmDoneStatusChange,
   isRemovedTaskStatus,
   normalizeStatusKey,
+  requiresDoneStatusChangeConfirmation,
 } from '../utils/statusOptions';
 
 function buildAvailableMonths(uid: string | undefined | null, activeMonth: string): string[] {
@@ -85,6 +86,12 @@ export const DashboardPage: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
+  const [pendingDoneStatusChange, setPendingDoneStatusChange] = useState<{
+    taskId: string;
+    newStatus: string;
+  } | null>(null);
+  const [confirmingDoneStatus, setConfirmingDoneStatus] = useState<boolean>(false);
+  const [doneStatusError, setDoneStatusError] = useState<string | null>(null);
 
   // Restore user-scoped month preference or reset when logged out/switched
   useEffect(() => {
@@ -186,13 +193,41 @@ export const DashboardPage: React.FC = () => {
   ) => {
     if (isRemovedTaskStatus(newStatus)) return;
     if (normalizeStatusKey(currentStatus) === normalizeStatusKey(newStatus)) return;
-    if (!confirmDoneStatusChange(currentStatus, newStatus)) return;
+
+    if (requiresDoneStatusChangeConfirmation(currentStatus, newStatus)) {
+      setDoneStatusError(null);
+      setPendingDoneStatusChange({ taskId, newStatus });
+      return;
+    }
 
     try {
       await quickUpdateTaskStatus(taskId, newStatus);
+    } catch (err) {
+      console.error('Failed to change status:', err);
+    }
+  };
+
+  const handleCancelDoneStatusChange = () => {
+    if (confirmingDoneStatus) return;
+    setPendingDoneStatusChange(null);
+    setDoneStatusError(null);
+  };
+
+  const handleConfirmDoneStatusChange = async () => {
+    if (!pendingDoneStatusChange || confirmingDoneStatus) return;
+    setConfirmingDoneStatus(true);
+    setDoneStatusError(null);
+    try {
+      await quickUpdateTaskStatus(
+        pendingDoneStatusChange.taskId,
+        pendingDoneStatusChange.newStatus
+      );
+      setPendingDoneStatusChange(null);
     } catch (err: any) {
       console.error('Failed to change status:', err);
-      window.alert(err?.message || 'Failed to update task status. Please try again.');
+      setDoneStatusError(err?.message || 'Failed to update task status. Please try again.');
+    } finally {
+      setConfirmingDoneStatus(false);
     }
   };
 
@@ -386,6 +421,14 @@ export const DashboardPage: React.FC = () => {
         confirmText="Delete Task"
         onConfirm={handleConfirmDelete}
         onCancel={() => setTaskToDelete(null)}
+      />
+
+      <DoneStatusConfirmDialog
+        isOpen={!!pendingDoneStatusChange}
+        isSubmitting={confirmingDoneStatus}
+        errorMessage={doneStatusError}
+        onCancel={handleCancelDoneStatusChange}
+        onConfirm={handleConfirmDoneStatusChange}
       />
     </div>
   );

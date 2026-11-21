@@ -60,8 +60,10 @@ export function buildSelectableTaskStatuses(candidates: readonly (string | undef
   return result;
 }
 
-export const DONE_STATUS_CHANGE_CONFIRM_MESSAGE =
-  'Need Confirmation:\nThis task is already marked as Done. Are you sure you want to change its status?';
+export const DONE_STATUS_CHANGE_CONFIRM_TITLE = 'Need Confirmation:';
+
+export const DONE_STATUS_CHANGE_CONFIRM_BODY =
+  'This task is already marked as Done. Are you sure you want to change its status?';
 
 export function isDoneStatus(statusName: string | undefined | null): boolean {
   return normalizeStatusKey(statusName) === 'done';
@@ -76,14 +78,4 @@ export function requiresDoneStatusChangeConfirmation(
   return nextKey.length > 0 && nextKey !== 'done';
 }
 
-export function confirmDoneStatusChange(
-  currentStatus: string | undefined | null,
-  nextStatus: string | undefined | null,
-  confirmFn: (message: string) => boolean = (msg) => window.confirm(msg)
-): boolean {
-  if (!requiresDoneStatusChangeConfirmation(currentStatus, nextStatus)) {
-    return true;
-  }
-  return confirmFn(DONE_STATUS_CHANGE_CONFIRM_MESSAGE);
-}
 

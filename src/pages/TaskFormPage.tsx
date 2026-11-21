@@ -39,12 +39,12 @@ import {
   getCodeForAccount,
 } from '../types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { DoneStatusConfirmDialog } from '../components/DoneStatusConfirmDialog';
 import { DeveloperFooter } from '../components/DeveloperFooter';
 import { getSavedMonthForUser } from '../utils/monthUtils';
 import { getStatusColor } from '../utils/statusColors';
 import {
   buildSelectableTaskStatuses,
-  confirmDoneStatusChange,
   isRemovedTaskStatus,
   normalizeStatusKey,
   requiresDoneStatusChangeConfirmation,
@@ -91,6 +91,8 @@ export const TaskFormPage: React.FC = () => {
     !isNew ? initialTask?.status || '' : ''
   );
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [pendingDoneStatus, setPendingDoneStatus] = useState<string | null>(null);
+  const [doneStatusError, setDoneStatusError] = useState<string | null>(null);
   const [category, setCategory] = useState(initialTask?.category || 'Materials');
   const [remarks, setRemarks] = useState(initialTask?.remarks || '');
   const [monthYear] = useState(initialTask?.monthYear || initialMonth);
@@ -179,33 +181,44 @@ export const TaskFormPage: React.FC = () => {
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [categories, category]);
 
-  const handleStatusDropdownChange = async (nextVal: string) => {
+  const handleStatusDropdownChange = (nextVal: string) => {
     if (!nextVal || isRemovedTaskStatus(nextVal)) return;
     if (normalizeStatusKey(nextVal) === normalizeStatusKey(status)) return;
 
     if (!isNew && taskId && requiresDoneStatusChangeConfirmation(persistedStatus, nextVal)) {
-      if (!confirmDoneStatusChange(persistedStatus, nextVal)) {
-        return;
-      }
-
-      try {
-        setUpdatingStatus(true);
-        setError(null);
-        await quickUpdateTaskStatus(taskId, nextVal);
-        setStatus(nextVal);
-        setPersistedStatus(nextVal);
-      } catch (err: any) {
-        console.error('Error updating task status:', err);
-        const message = err?.message || 'Failed to update task status. Please try again.';
-        setError(message);
-        window.alert(message);
-      } finally {
-        setUpdatingStatus(false);
-      }
+      setDoneStatusError(null);
+      setPendingDoneStatus(nextVal);
       return;
     }
 
     setStatus(nextVal);
+  };
+
+  const handleCancelDoneStatusChange = () => {
+    if (updatingStatus) return;
+    setPendingDoneStatus(null);
+    setDoneStatusError(null);
+  };
+
+  const handleConfirmDoneStatusChange = async () => {
+    if (!pendingDoneStatus || !taskId || updatingStatus) return;
+
+    try {
+      setUpdatingStatus(true);
+      setDoneStatusError(null);
+      setError(null);
+      await quickUpdateTaskStatus(taskId, pendingDoneStatus);
+      setStatus(pendingDoneStatus);
+      setPersistedStatus(pendingDoneStatus);
+      setPendingDoneStatus(null);
+    } catch (err: any) {
+      console.error('Error updating task status:', err);
+      const message = err?.message || 'Failed to update task status. Please try again.';
+      setDoneStatusError(message);
+      setError(message);
+    } finally {
+      setUpdatingStatus(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -248,8 +261,10 @@ export const TaskFormPage: React.FC = () => {
         return;
       }
 
-      // Safety check: confirm before saving if persisted Done status is being changed
-      if (!isNew && !confirmDoneStatusChange(persistedStatus, status)) {
+      // Safety check: require in-app confirmation before saving if persisted Done status is being changed
+      if (!isNew && requiresDoneStatusChangeConfirmation(persistedStatus, status)) {
+        setDoneStatusError(null);
+        setPendingDoneStatus(status);
         setSaving(false);
         return;
       }
@@ -719,7 +734,7 @@ export const TaskFormPage: React.FC = () => {
                         value={isHistoricalRemovedStatus ? '' : status}
                         disabled={updatingStatus || saving}
                         onChange={(e) => {
-                          void handleStatusDropdownChange(e.target.value);
+                          handleStatusDropdownChange(e.target.value);
                         }}
                         style={{
                           backgroundColor: activeColors.bg,
@@ -798,6 +813,15 @@ export const TaskFormPage: React.FC = () => {
         confirmText="Confirm Delete"
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteModal(false)}
+      />
+
+      {/* Compact Done Status Confirmation Alert */}
+      <DoneStatusConfirmDialog
+        isOpen={!!pendingDoneStatus}
+        isSubmitting={updatingStatus}
+        errorMessage={doneStatusError}
+        onCancel={handleCancelDoneStatusChange}
+        onConfirm={handleConfirmDoneStatusChange}
       />
 
       {/* Searchable Account Selection Modal */}
