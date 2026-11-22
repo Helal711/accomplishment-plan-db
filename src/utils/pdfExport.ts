@@ -17,7 +17,7 @@ export const PDF_TABLE_HEADERS = [
   'Unit',
   'Priority',
   'Status',
-  'Expected Date',
+  'Completion Date',
   'Account Name',
   'Account Code',
   'Category',
@@ -236,7 +236,9 @@ export function mapTaskToPdfRow(
     priority: safePdfText(taskRecord.priority),
     status: safePdfText(taskRecord.status),
     expectedDate: safePdfText(
-      pickFirstNonEmptyValue(taskRecord.expectedDate, taskRecord.expected_date)
+      typeof taskRecord.expectedDate === 'string'
+        ? taskRecord.expectedDate
+        : pickFirstNonEmptyValue(taskRecord.expectedDate, taskRecord.expected_date)
     ),
     accountName: safePdfText(
       pickFirstNonEmptyValue(taskRecord.accountName, taskRecord.account_name)

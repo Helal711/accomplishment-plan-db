@@ -65,6 +65,7 @@ import {
   applyManualPurchasedAmountChange,
   calculatePurchasedAmount,
 } from '../utils/purchaseAmount';
+import { formatIsoDateToDisplay, parseDisplayDateToIso } from '../utils/dateUtils';
 
 export const TaskFormPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
@@ -88,7 +89,7 @@ export const TaskFormPage: React.FC = () => {
   const [priority, setPriority] = useState<Priority>(initialTask?.priority || 'High');
   const [unit, setUnit] = useState(initialTask?.unit || 'Unit-1');
   const [paymentMode, setPaymentMode] = useState(initialTask?.paymentMode || 'Cash');
-  const [expectedDate, setExpectedDate] = useState(initialTask?.expectedDate || '17 Nov 2026');
+  const [expectedDate, setExpectedDate] = useState(initialTask?.expectedDate || '');
   const [accountName, setAccountName] = useState(
     initialTask?.accountName || 'M_Supply expenses(Other)'
   );
@@ -112,7 +113,7 @@ export const TaskFormPage: React.FC = () => {
       priority: initialTask?.priority || 'High',
       unit: initialTask?.unit || 'Unit-1',
       paymentMode: initialTask?.paymentMode || 'Cash',
-      expectedDate: initialTask?.expectedDate || '17 Nov 2026',
+      expectedDate: initialTask?.expectedDate || '',
       accountName: initialTask?.accountName || 'M_Supply expenses(Other)',
       accountCode: initialTask?.accountCode || '4532154',
       category: initialTask?.category || 'Materials',
@@ -790,7 +791,7 @@ export const TaskFormPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 4. Unit & Expected Date (2-col grid) */}
+            {/* 4. Unit & Completion Date (2-col grid) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1.5">
@@ -813,18 +814,59 @@ export const TaskFormPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1.5">
-                  Expected Date
+                <label
+                  htmlFor="completion-date-input"
+                  className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1.5"
+                >
+                  Completion Date
                 </label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-gray-400 absolute left-3.5 top-3 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={expectedDate}
-                    onChange={(e) => setExpectedDate(e.target.value)}
-                    placeholder="e.g. 17 Nov 2026"
-                    className="w-full pl-10 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
-                  />
+                <div className="relative flex items-center w-full border border-gray-300 rounded-lg bg-white focus-within:ring-2 focus-within:ring-app-primary focus-within:border-transparent transition-all">
+                  <div className="relative flex-1 min-w-0 flex items-center">
+                    <Calendar className="w-4 h-4 text-gray-400 absolute left-3.5 pointer-events-none" />
+                    <div
+                      data-testid="completion-date-display"
+                      className={`w-full pl-10 pr-3 py-2.5 text-sm truncate pointer-events-none select-none ${
+                        expectedDate ? 'text-gray-900 font-medium' : 'text-gray-400'
+                      }`}
+                    >
+                      {expectedDate || 'Select completion date'}
+                    </div>
+                    <input
+                      id="completion-date-input"
+                      type="date"
+                      aria-label="Completion Date"
+                      value={parseDisplayDateToIso(expectedDate)}
+                      onChange={(e) => {
+                        const nextIso = e.target.value;
+                        setExpectedDate(nextIso ? formatIsoDateToDisplay(nextIso) : '');
+                      }}
+                      onClick={(e) => {
+                        const inputEl = e.currentTarget as HTMLInputElement & {
+                          showPicker?: () => void;
+                        };
+                        if (typeof inputEl.showPicker === 'function') {
+                          try {
+                            inputEl.showPicker();
+                          } catch {
+                            // Native browser click behavior handles opening the picker
+                          }
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                  {expectedDate && (
+                    <button
+                      type="button"
+                      onClick={() => setExpectedDate('')}
+                      aria-label="Clear completion date"
+                      title="Clear date"
+                      data-testid="clear-completion-date-btn"
+                      className="relative z-10 mr-1.5 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors flex-shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

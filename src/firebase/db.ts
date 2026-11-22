@@ -128,7 +128,10 @@ export function subscribeToTasks(
           unit: data.unit || 'Unit-1',
           priority: data.priority || 'High',
           status: data.status || 'Draft Ready',
-          expectedDate: data.expectedDate || '',
+          expectedDate:
+            typeof data.expectedDate === 'string'
+              ? data.expectedDate
+              : firstNonEmptyString(data.expectedDate, data.expected_date),
           accountName: data.accountName || 'Civil Maintenance',
           accountCode: data.accountCode || 'ACC-CM101',
           category: data.category || '',

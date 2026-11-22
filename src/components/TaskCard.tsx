@@ -65,7 +65,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* Row 2: Amount | Payment Mode | Purchased Amount (TK) | Supplier Name & Expected Date */}
+      {/* Row 2: Amount | Payment Mode | Purchased Amount (TK) | Supplier Name & Completion Date */}
       <div className="flex items-center justify-between gap-2 text-[13px] text-gray-600 my-1.5">
         <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 min-w-0 flex-1">
           <span>
@@ -95,7 +95,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
 
         {task.expectedDate && (
-          <span className="text-[11px] text-gray-500 hidden sm:inline-block flex-shrink-0">
+          <span
+            title="Completion Date"
+            aria-label={`Completion Date: ${task.expectedDate}`}
+            className="text-[11px] text-gray-500 hidden sm:inline-block flex-shrink-0"
+          >
             📅 {task.expectedDate}
           </span>
         )}

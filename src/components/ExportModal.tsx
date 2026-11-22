@@ -39,7 +39,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         { wch: 12 }, // Unit
         { wch: 12 }, // Priority
         { wch: 15 }, // Status
-        { wch: 15 }, // Expected Date
+        { wch: 16 }, // Completion Date
         { wch: 32 }, // Account Name
         { wch: 15 }, // Account Code
         { wch: 18 }, // Category

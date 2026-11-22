@@ -59,7 +59,7 @@ export interface ExcelTaskRow {
   Unit: string;
   Priority: string;
   Status: string;
-  'Expected Date': string;
+  'Completion Date': string;
   'Account Name': string;
   'Account Code': string;
   Category: string;
@@ -84,7 +84,7 @@ export function buildExcelRows(currentMonth: string, tasks: TaskItem[]): ExcelTa
       Unit: t.unit || '',
       Priority: t.priority || '',
       Status: t.status || '',
-      'Expected Date': t.expectedDate || '',
+      'Completion Date': t.expectedDate || '',
       'Account Name': t.accountName || '',
       'Account Code': t.accountCode || '',
       Category: t.category || '',
@@ -105,7 +105,7 @@ export function buildCsvContent(currentMonth: string, tasks: TaskItem[]): string
     'Unit',
     'Priority',
     'Status',
-    'Expected Date',
+    'Completion Date',
     'Account Name',
     'Account Code',
     'Category',
@@ -159,7 +159,7 @@ export function buildSummaryText(currentMonth: string, tasks: TaskItem[]): strin
     text += `${buildTaskInlineMetadata(task)}\n`;
     text += `Unit: ${task.unit} | Priority: ${task.priority} | Status: ${task.status}\n`;
     text += `Account: ${task.accountName} (${task.accountCode})\n`;
-    if (task.expectedDate) text += `Expected Date: ${task.expectedDate}\n`;
+    if (task.expectedDate) text += `Completion Date: ${task.expectedDate}\n`;
     if (task.remarks) text += `Remarks: ${task.remarks}\n`;
     text += `\n`;
   });
