@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -46,11 +46,18 @@ import {
   buildSelectableTaskStatuses,
   DONE_TASK_UPDATE_CONFIRM_BODY,
   EditableTaskSnapshot,
+  hasEditableTaskChanges,
   isRemovedTaskStatus,
   normalizeEditableTaskSnapshot,
   normalizeStatusKey,
   requiresDoneTaskUpdateConfirmation,
 } from '../utils/statusOptions';
+import {
+  extractShortcutTarget,
+  resolveTaskFormShortcut,
+  UNSAVED_CHANGES_CONFIRM_BODY,
+  UNSAVED_CHANGES_CONFIRM_TITLE,
+} from '../utils/keyboardShortcuts';
 import {
   initPurchaseAmountState,
   applyUnitPriceChange,
@@ -129,7 +136,9 @@ export const TaskFormPage: React.FC = () => {
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [accountSearchQuery, setAccountSearchQuery] = useState('');
+  const submitLockRef = useRef(false);
 
   // Auto-calculate next serial number for new task if not passed
   useEffect(() => {
@@ -238,8 +247,11 @@ export const TaskFormPage: React.FC = () => {
   };
 
   const handleConfirmDoneUpdate = async () => {
-    if (!pendingDoneUpdate || !taskId || confirmingDoneUpdate || saving) return;
+    if (submitLockRef.current || !pendingDoneUpdate || !taskId || confirmingDoneUpdate || saving) {
+      return;
+    }
 
+    submitLockRef.current = true;
     try {
       setConfirmingDoneUpdate(true);
       setDoneUpdateError(null);
@@ -256,14 +268,33 @@ export const TaskFormPage: React.FC = () => {
       const message = err?.message || 'Failed to save task. Original data has been kept.';
       setDoneUpdateError(message);
       setError(message);
+      submitLockRef.current = false;
     } finally {
       setConfirmingDoneUpdate(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (saving || confirmingDoneUpdate) return;
+  const buildCurrentSnapshot = (): EditableTaskSnapshot =>
+    normalizeEditableTaskSnapshot({
+      description,
+      amount,
+      unitPrice: purchaseState.unitPrice,
+      totalQuantity: purchaseState.totalQuantity,
+      purchasedAmount: purchaseState.purchasedAmount,
+      supplierName,
+      priority,
+      unit,
+      paymentMode,
+      expectedDate,
+      accountName,
+      accountCode,
+      category,
+      status,
+      remarks,
+    });
+
+  const submitTaskForm = async () => {
+    if (submitLockRef.current || saving || confirmingDoneUpdate || pendingDoneUpdate) return;
     setError(null);
 
     if (!description.trim()) {
@@ -349,6 +380,7 @@ export const TaskFormPage: React.FC = () => {
         return;
       }
 
+      submitLockRef.current = true;
       try {
         setSaving(true);
         await updateTask(taskId, updatePayload);
@@ -361,10 +393,12 @@ export const TaskFormPage: React.FC = () => {
         console.error('Error saving task:', err);
         setError(err.message || 'Failed to save task.');
         setSaving(false);
+        submitLockRef.current = false;
       }
       return;
     }
 
+    submitLockRef.current = true;
     try {
       setSaving(true);
       await addTask({
@@ -395,8 +429,94 @@ export const TaskFormPage: React.FC = () => {
       console.error('Error saving task:', err);
       setError(err.message || 'Failed to save task.');
       setSaving(false);
+      submitLockRef.current = false;
     }
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitTaskForm();
+  };
+
+  const handleEscapeShortcut = () => {
+    if (pendingDoneUpdate) {
+      if (!confirmingDoneUpdate) {
+        handleCancelDoneUpdate();
+      }
+      return;
+    }
+    if (showDiscardDialog) {
+      setShowDiscardDialog(false);
+      return;
+    }
+    if (showDeleteModal) {
+      if (!saving) {
+        setShowDeleteModal(false);
+      }
+      return;
+    }
+    if (showAccountModal) {
+      setShowAccountModal(false);
+      return;
+    }
+    if (saving || confirmingDoneUpdate || submitLockRef.current) {
+      return;
+    }
+
+    const currentSnapshot = buildCurrentSnapshot();
+    if (hasEditableTaskChanges(originalSnapshot, currentSnapshot)) {
+      setShowDiscardDialog(true);
+      return;
+    }
+
+    navigate('/');
+  };
+
+  const hasOpenOverlay = Boolean(
+    pendingDoneUpdate || showDiscardDialog || showDeleteModal || showAccountModal
+  );
+
+  const shortcutHandlersRef = useRef({
+    submitTaskForm,
+    handleEscapeShortcut,
+    hasOpenOverlay,
+  });
+  shortcutHandlersRef.current = {
+    submitTaskForm,
+    handleEscapeShortcut,
+    hasOpenOverlay,
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const { submitTaskForm: submitFn, handleEscapeShortcut: escapeFn, hasOpenOverlay: overlayOpen } =
+        shortcutHandlersRef.current;
+      const action = resolveTaskFormShortcut(
+        event,
+        extractShortcutTarget(event.target),
+        overlayOpen
+      );
+
+      if (action === 'prevent-only') {
+        event.preventDefault();
+        return;
+      }
+
+      if (action === 'submit') {
+        event.preventDefault();
+        void submitFn();
+        return;
+      }
+
+      if (action === 'escape') {
+        event.preventDefault();
+        escapeFn();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const handleDelete = async () => {
     if (!taskId || isNew) return;
@@ -893,6 +1013,18 @@ export const TaskFormPage: React.FC = () => {
         errorMessage={doneUpdateError}
         onCancel={handleCancelDoneUpdate}
         onConfirm={handleConfirmDoneUpdate}
+      />
+
+      {/* Compact Unsaved Changes Confirmation Alert (Esc shortcut) */}
+      <DoneStatusConfirmDialog
+        isOpen={showDiscardDialog}
+        title={UNSAVED_CHANGES_CONFIRM_TITLE}
+        message={UNSAVED_CHANGES_CONFIRM_BODY}
+        onCancel={() => setShowDiscardDialog(false)}
+        onConfirm={() => {
+          setShowDiscardDialog(false);
+          navigate('/');
+        }}
       />
 
       {/* Searchable Account Selection Modal */}

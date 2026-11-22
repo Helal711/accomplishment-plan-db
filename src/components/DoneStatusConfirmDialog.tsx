@@ -26,8 +26,12 @@ export const DoneStatusConfirmDialog: React.FC<DoneStatusConfirmDialogProps> = (
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isSubmitting) {
-        onCancel();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!isSubmitting) {
+          onCancel();
+        }
       }
     };
     document.addEventListener('keydown', handleKeyDown);

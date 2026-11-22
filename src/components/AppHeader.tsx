@@ -17,6 +17,7 @@ import {
   HIDDEN_DASHBOARD_SUMMARY_STATUSES,
   isHiddenDashboardSummaryStatus,
 } from '../utils/statusOptions';
+import { isQuickSearchShortcut } from '../utils/keyboardShortcuts';
 
 export { HIDDEN_DASHBOARD_SUMMARY_STATUSES, isHiddenDashboardSummaryStatus };
 
@@ -103,6 +104,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -113,6 +115,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const handleQuickSearchKeyDown = (event: KeyboardEvent) => {
+      if (!isQuickSearchShortcut(event)) return;
+      event.preventDefault();
+      if (!isSearchOpen) {
+        setIsSearchOpen(true);
+        requestAnimationFrame(() => {
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        });
+      } else {
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', handleQuickSearchKeyDown);
+    return () => window.removeEventListener('keydown', handleQuickSearchKeyDown);
+  }, [isSearchOpen]);
 
   const visibleStatusCounts = filterVisibleDashboardStatusCounts(statusCounts);
 
@@ -243,6 +264,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <div className="max-w-4xl mx-auto relative flex items-center">
             <Search className="w-4 h-4 text-gray-400 absolute left-2.5 sm:left-3 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
