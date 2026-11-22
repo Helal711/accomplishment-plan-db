@@ -65,6 +65,60 @@ export const DONE_STATUS_CHANGE_CONFIRM_TITLE = 'Need Confirmation:';
 export const DONE_STATUS_CHANGE_CONFIRM_BODY =
   'This task is already marked as Done. Are you sure you want to change its status?';
 
+export const DONE_TASK_UPDATE_CONFIRM_BODY =
+  'This task is already marked as Done. Are you sure you want to update this task?';
+
+export interface EditableTaskSnapshot {
+  description: string;
+  amount: string;
+  unitPrice: string;
+  totalQuantity: string;
+  purchasedAmount: string;
+  supplierName: string;
+  priority: string;
+  unit: string;
+  paymentMode: string;
+  expectedDate: string;
+  accountName: string;
+  accountCode: string;
+  category: string;
+  status: string;
+  remarks: string;
+}
+
+export function normalizeEditableTaskSnapshot(
+  input: Partial<EditableTaskSnapshot>
+): EditableTaskSnapshot {
+  return {
+    description: String(input.description ?? '').trim(),
+    amount: String(input.amount ?? '').replace(/\s*TK$/i, '').trim(),
+    unitPrice: String(input.unitPrice ?? '').replace(/\s*TK$/i, '').trim(),
+    totalQuantity: String(input.totalQuantity ?? '').replace(/\s*TK$/i, '').trim(),
+    purchasedAmount: String(input.purchasedAmount ?? '').replace(/\s*TK$/i, '').trim(),
+    supplierName: String(input.supplierName ?? '').trim(),
+    priority: String(input.priority ?? '').trim(),
+    unit: String(input.unit ?? '').trim(),
+    paymentMode: String(input.paymentMode ?? '').trim(),
+    expectedDate: String(input.expectedDate ?? '').trim(),
+    accountName: String(input.accountName ?? '').trim(),
+    accountCode: String(input.accountCode ?? '').trim(),
+    category: String(input.category ?? '').trim(),
+    status: String(input.status ?? '').trim(),
+    remarks: String(input.remarks ?? '').trim(),
+  };
+}
+
+export function hasEditableTaskChanges(
+  original: EditableTaskSnapshot,
+  edited: EditableTaskSnapshot
+): boolean {
+  const normalizedOriginal = normalizeEditableTaskSnapshot(original);
+  const normalizedEdited = normalizeEditableTaskSnapshot(edited);
+  return (Object.keys(normalizedOriginal) as Array<keyof EditableTaskSnapshot>).some(
+    (key) => normalizedOriginal[key] !== normalizedEdited[key]
+  );
+}
+
 export function isDoneStatus(statusName: string | undefined | null): boolean {
   return normalizeStatusKey(statusName) === 'done';
 }
@@ -77,5 +131,14 @@ export function requiresDoneStatusChangeConfirmation(
   const nextKey = normalizeStatusKey(nextStatus);
   return nextKey.length > 0 && nextKey !== 'done';
 }
+
+export function requiresDoneTaskUpdateConfirmation(
+  original: EditableTaskSnapshot,
+  edited: EditableTaskSnapshot
+): boolean {
+  if (!isDoneStatus(original.status)) return false;
+  return hasEditableTaskChanges(original, edited);
+}
+
 
 

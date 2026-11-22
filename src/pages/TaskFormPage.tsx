@@ -19,7 +19,6 @@ import { useAuth } from '../context/AuthContext';
 import {
   addTask,
   updateTask,
-  quickUpdateTaskStatus,
   deleteTask,
   subscribeToAccounts,
   subscribeToStatuses,
@@ -45,9 +44,12 @@ import { getSavedMonthForUser } from '../utils/monthUtils';
 import { getStatusColor } from '../utils/statusColors';
 import {
   buildSelectableTaskStatuses,
+  DONE_TASK_UPDATE_CONFIRM_BODY,
+  EditableTaskSnapshot,
   isRemovedTaskStatus,
+  normalizeEditableTaskSnapshot,
   normalizeStatusKey,
-  requiresDoneStatusChangeConfirmation,
+  requiresDoneTaskUpdateConfirmation,
 } from '../utils/statusOptions';
 import {
   initPurchaseAmountState,
@@ -87,16 +89,36 @@ export const TaskFormPage: React.FC = () => {
     initialTask?.accountCode || '4532154'
   );
   const [status, setStatus] = useState(initialTask?.status || 'Draft Ready');
-  const [persistedStatus, setPersistedStatus] = useState(
-    !isNew ? initialTask?.status || '' : ''
-  );
-  const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [pendingDoneStatus, setPendingDoneStatus] = useState<string | null>(null);
-  const [doneStatusError, setDoneStatusError] = useState<string | null>(null);
   const [category, setCategory] = useState(initialTask?.category || 'Materials');
   const [remarks, setRemarks] = useState(initialTask?.remarks || '');
   const [monthYear] = useState(initialTask?.monthYear || initialMonth);
   const [taskNumber, setTaskNumber] = useState(initialTask?.taskNumber || 1);
+  const [originalSnapshot, setOriginalSnapshot] = useState<EditableTaskSnapshot>(() => {
+    const initPurchase = initPurchaseAmountState(initialTask);
+    return normalizeEditableTaskSnapshot({
+      description: initialTask?.description || '',
+      amount: initialTask?.amount ? initialTask.amount.replace(/\s*TK/i, '') : '',
+      unitPrice: initPurchase.unitPrice,
+      totalQuantity: initPurchase.totalQuantity,
+      purchasedAmount: initPurchase.purchasedAmount,
+      supplierName: initialTask?.supplierName || '',
+      priority: initialTask?.priority || 'High',
+      unit: initialTask?.unit || 'Unit-1',
+      paymentMode: initialTask?.paymentMode || 'Cash',
+      expectedDate: initialTask?.expectedDate || '17 Nov 2026',
+      accountName: initialTask?.accountName || 'M_Supply expenses(Other)',
+      accountCode: initialTask?.accountCode || '4532154',
+      category: initialTask?.category || 'Materials',
+      status: initialTask?.status || 'Draft Ready',
+      remarks: initialTask?.remarks || '',
+    });
+  });
+  const [pendingDoneUpdate, setPendingDoneUpdate] = useState<{
+    payload: Partial<TaskItem>;
+    snapshot: EditableTaskSnapshot;
+  } | null>(null);
+  const [confirmingDoneUpdate, setConfirmingDoneUpdate] = useState(false);
+  const [doneUpdateError, setDoneUpdateError] = useState<string | null>(null);
 
   // Subscriptions
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -184,45 +206,64 @@ export const TaskFormPage: React.FC = () => {
   const handleStatusDropdownChange = (nextVal: string) => {
     if (!nextVal || isRemovedTaskStatus(nextVal)) return;
     if (normalizeStatusKey(nextVal) === normalizeStatusKey(status)) return;
-
-    if (!isNew && taskId && requiresDoneStatusChangeConfirmation(persistedStatus, nextVal)) {
-      setDoneStatusError(null);
-      setPendingDoneStatus(nextVal);
-      return;
-    }
-
     setStatus(nextVal);
   };
 
-  const handleCancelDoneStatusChange = () => {
-    if (updatingStatus) return;
-    setPendingDoneStatus(null);
-    setDoneStatusError(null);
+  const handleCancelDoneUpdate = () => {
+    if (confirmingDoneUpdate) return;
+    setPendingDoneUpdate(null);
+    setDoneUpdateError(null);
+    setError(null);
+
+    // Discard pending changes and restore all original saved task fields
+    setDescription(originalSnapshot.description);
+    setAmount(originalSnapshot.amount);
+    setPurchaseState(
+      initPurchaseAmountState({
+        unitPrice: originalSnapshot.unitPrice,
+        totalQuantity: originalSnapshot.totalQuantity,
+        purchasedAmount: originalSnapshot.purchasedAmount,
+      })
+    );
+    setSupplierName(originalSnapshot.supplierName);
+    setPriority((originalSnapshot.priority || 'High') as Priority);
+    setUnit(originalSnapshot.unit);
+    setPaymentMode(originalSnapshot.paymentMode);
+    setExpectedDate(originalSnapshot.expectedDate);
+    setAccountName(originalSnapshot.accountName);
+    setAccountCode(originalSnapshot.accountCode);
+    setStatus(originalSnapshot.status);
+    setCategory(originalSnapshot.category);
+    setRemarks(originalSnapshot.remarks);
   };
 
-  const handleConfirmDoneStatusChange = async () => {
-    if (!pendingDoneStatus || !taskId || updatingStatus) return;
+  const handleConfirmDoneUpdate = async () => {
+    if (!pendingDoneUpdate || !taskId || confirmingDoneUpdate || saving) return;
 
     try {
-      setUpdatingStatus(true);
-      setDoneStatusError(null);
+      setConfirmingDoneUpdate(true);
+      setDoneUpdateError(null);
       setError(null);
-      await quickUpdateTaskStatus(taskId, pendingDoneStatus);
-      setStatus(pendingDoneStatus);
-      setPersistedStatus(pendingDoneStatus);
-      setPendingDoneStatus(null);
+      await updateTask(taskId, pendingDoneUpdate.payload);
+      setOriginalSnapshot(pendingDoneUpdate.snapshot);
+      setPendingDoneUpdate(null);
+      setSuccessToast('Task Updated Successfully!');
+      setTimeout(() => {
+        navigate('/');
+      }, 700);
     } catch (err: any) {
-      console.error('Error updating task status:', err);
-      const message = err?.message || 'Failed to update task status. Please try again.';
-      setDoneStatusError(message);
+      console.error('Error saving task:', err);
+      const message = err?.message || 'Failed to save task. Original data has been kept.';
+      setDoneUpdateError(message);
       setError(message);
     } finally {
-      setUpdatingStatus(false);
+      setConfirmingDoneUpdate(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving || confirmingDoneUpdate) return;
     setError(null);
 
     if (!description.trim()) {
@@ -235,89 +276,118 @@ export const TaskFormPage: React.FC = () => {
       return;
     }
 
+    const cleanedAmount = amount.trim();
+    const validatedCode = getCodeForAccount(accountName, accounts);
+    const finalAccountCode = accountCode.trim() || validatedCode;
+
+    // Validate account exists in user's account master list
+    const accountExists = combinedAccounts.some(
+      (a) => a.accountName.toLowerCase().trim() === accountName.toLowerCase().trim()
+    );
+    if (!accountExists && combinedAccounts.length > 0) {
+      setError(`Selected account "${accountName}" does not exist in your Account List. Please select a valid account.`);
+      return;
+    }
+
+    // Prevent selecting removed statuses for new tasks or changing an existing task into a removed status
+    const originalStatusKey = normalizeStatusKey(originalSnapshot.status);
+    const currentStatusKey = normalizeStatusKey(status);
+    const isPreservingHistoricalStatus = !isNew && originalStatusKey === currentStatusKey;
+    if (isRemovedTaskStatus(status) && !isPreservingHistoricalStatus) {
+      setError('Selected task status is no longer available. Please choose another status.');
+      return;
+    }
+
+    const cleanedUnitPrice = purchaseState.unitPrice.trim();
+    const cleanedTotalQuantity = purchaseState.totalQuantity.trim();
+    const cleanedPurchasedAmount = purchaseState.purchasedAmount.trim();
+    const cleanedSupplierName = supplierName.trim();
+
+    if (!isNew) {
+      const updatePayload: Partial<TaskItem> = {
+        description: description.trim(),
+        amount: cleanedAmount,
+        unitPrice: cleanedUnitPrice,
+        totalQuantity: cleanedTotalQuantity,
+        purchasedAmount: cleanedPurchasedAmount,
+        supplierName: cleanedSupplierName,
+        paymentMode,
+        unit,
+        priority,
+        status,
+        expectedDate,
+        accountName,
+        accountCode: finalAccountCode,
+        category,
+        remarks: remarks.trim(),
+      };
+
+      const editedSnapshot = normalizeEditableTaskSnapshot({
+        description: updatePayload.description,
+        amount: updatePayload.amount,
+        unitPrice: updatePayload.unitPrice,
+        totalQuantity: updatePayload.totalQuantity,
+        purchasedAmount: updatePayload.purchasedAmount,
+        supplierName: updatePayload.supplierName,
+        priority: updatePayload.priority,
+        unit: updatePayload.unit,
+        paymentMode: updatePayload.paymentMode,
+        expectedDate: updatePayload.expectedDate,
+        accountName: updatePayload.accountName,
+        accountCode: updatePayload.accountCode,
+        category: updatePayload.category,
+        status: updatePayload.status,
+        remarks: updatePayload.remarks,
+      });
+
+      if (requiresDoneTaskUpdateConfirmation(originalSnapshot, editedSnapshot)) {
+        setDoneUpdateError(null);
+        setPendingDoneUpdate({
+          payload: updatePayload,
+          snapshot: editedSnapshot,
+        });
+        return;
+      }
+
+      try {
+        setSaving(true);
+        await updateTask(taskId, updatePayload);
+        setOriginalSnapshot(editedSnapshot);
+        setSuccessToast('Task Updated Successfully!');
+        setTimeout(() => {
+          navigate('/');
+        }, 700);
+      } catch (err: any) {
+        console.error('Error saving task:', err);
+        setError(err.message || 'Failed to save task.');
+        setSaving(false);
+      }
+      return;
+    }
+
     try {
       setSaving(true);
-      const cleanedAmount = amount.trim();
-      const validatedCode = getCodeForAccount(accountName, accounts);
-      const finalAccountCode = accountCode.trim() || validatedCode;
-
-      // Validate account exists in user's account master list
-      const accountExists = combinedAccounts.some(
-        (a) => a.accountName.toLowerCase().trim() === accountName.toLowerCase().trim()
-      );
-      if (!accountExists && combinedAccounts.length > 0) {
-        setError(`Selected account "${accountName}" does not exist in your Account List. Please select a valid account.`);
-        setSaving(false);
-        return;
-      }
-
-      // Prevent selecting removed statuses for new tasks or changing an existing task into a removed status
-      const originalStatusKey = normalizeStatusKey(initialTask?.status);
-      const currentStatusKey = normalizeStatusKey(status);
-      const isPreservingHistoricalStatus = !isNew && originalStatusKey === currentStatusKey;
-      if (isRemovedTaskStatus(status) && !isPreservingHistoricalStatus) {
-        setError('Selected task status is no longer available. Please choose another status.');
-        setSaving(false);
-        return;
-      }
-
-      // Safety check: require in-app confirmation before saving if persisted Done status is being changed
-      if (!isNew && requiresDoneStatusChangeConfirmation(persistedStatus, status)) {
-        setDoneStatusError(null);
-        setPendingDoneStatus(status);
-        setSaving(false);
-        return;
-      }
-
-      const cleanedUnitPrice = purchaseState.unitPrice.trim();
-      const cleanedTotalQuantity = purchaseState.totalQuantity.trim();
-      const cleanedPurchasedAmount = purchaseState.purchasedAmount.trim();
-      const cleanedSupplierName = supplierName.trim();
-
-      if (isNew) {
-        await addTask({
-          ownerUid: currentUser.uid,
-          taskNumber,
-          description: description.trim(),
-          amount: cleanedAmount,
-          unitPrice: cleanedUnitPrice,
-          totalQuantity: cleanedTotalQuantity,
-          purchasedAmount: cleanedPurchasedAmount,
-          supplierName: cleanedSupplierName,
-          paymentMode,
-          unit,
-          priority,
-          status,
-          expectedDate,
-          accountName,
-          accountCode: finalAccountCode,
-          category,
-          remarks: remarks.trim(),
-          monthYear,
-        });
-        setSuccessToast('Task Created Successfully!');
-      } else {
-        await updateTask(taskId, {
-          description: description.trim(),
-          amount: cleanedAmount,
-          unitPrice: cleanedUnitPrice,
-          totalQuantity: cleanedTotalQuantity,
-          purchasedAmount: cleanedPurchasedAmount,
-          supplierName: cleanedSupplierName,
-          paymentMode,
-          unit,
-          priority,
-          status,
-          expectedDate,
-          accountName,
-          accountCode: finalAccountCode,
-          category,
-          remarks: remarks.trim(),
-        });
-        setPersistedStatus(status);
-        setSuccessToast('Task Updated Successfully!');
-      }
-
+      await addTask({
+        ownerUid: currentUser.uid,
+        taskNumber,
+        description: description.trim(),
+        amount: cleanedAmount,
+        unitPrice: cleanedUnitPrice,
+        totalQuantity: cleanedTotalQuantity,
+        purchasedAmount: cleanedPurchasedAmount,
+        supplierName: cleanedSupplierName,
+        paymentMode,
+        unit,
+        priority,
+        status,
+        expectedDate,
+        accountName,
+        accountCode: finalAccountCode,
+        category,
+        remarks: remarks.trim(),
+        monthYear,
+      });
+      setSuccessToast('Task Created Successfully!');
       setTimeout(() => {
         navigate('/');
       }, 700);
@@ -732,7 +802,7 @@ export const TaskFormPage: React.FC = () => {
                       />
                       <select
                         value={isHistoricalRemovedStatus ? '' : status}
-                        disabled={updatingStatus || saving}
+                        disabled={confirmingDoneUpdate || saving}
                         onChange={(e) => {
                           handleStatusDropdownChange(e.target.value);
                         }}
@@ -788,7 +858,7 @@ export const TaskFormPage: React.FC = () => {
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || confirmingDoneUpdate}
                 className="w-full h-12 bg-app-primary hover:bg-app-dark-blue text-white font-semibold rounded-md shadow-md transition-all duration-200 text-sm sm:text-base flex items-center justify-center space-x-2 disabled:opacity-50"
               >
                 {saving ? (
@@ -815,13 +885,14 @@ export const TaskFormPage: React.FC = () => {
         onCancel={() => setShowDeleteModal(false)}
       />
 
-      {/* Compact Done Status Confirmation Alert */}
+      {/* Compact Done Task Update Confirmation Alert */}
       <DoneStatusConfirmDialog
-        isOpen={!!pendingDoneStatus}
-        isSubmitting={updatingStatus}
-        errorMessage={doneStatusError}
-        onCancel={handleCancelDoneStatusChange}
-        onConfirm={handleConfirmDoneStatusChange}
+        isOpen={!!pendingDoneUpdate}
+        message={DONE_TASK_UPDATE_CONFIRM_BODY}
+        isSubmitting={confirmingDoneUpdate}
+        errorMessage={doneUpdateError}
+        onCancel={handleCancelDoneUpdate}
+        onConfirm={handleConfirmDoneUpdate}
       />
 
       {/* Searchable Account Selection Modal */}

@@ -6,6 +6,8 @@ import {
 
 interface DoneStatusConfirmDialogProps {
   isOpen: boolean;
+  title?: string;
+  message?: string;
   isSubmitting?: boolean;
   errorMessage?: string | null;
   onCancel: () => void;
@@ -14,6 +16,8 @@ interface DoneStatusConfirmDialogProps {
 
 export const DoneStatusConfirmDialog: React.FC<DoneStatusConfirmDialogProps> = ({
   isOpen,
+  title = DONE_STATUS_CHANGE_CONFIRM_TITLE,
+  message = DONE_STATUS_CHANGE_CONFIRM_BODY,
   isSubmitting = false,
   errorMessage = null,
   onCancel,
@@ -52,14 +56,14 @@ export const DoneStatusConfirmDialog: React.FC<DoneStatusConfirmDialogProps> = (
           id="done-status-confirm-title"
           className="text-sm font-bold text-gray-900 leading-snug"
         >
-          {DONE_STATUS_CHANGE_CONFIRM_TITLE}
+          {title}
         </p>
 
         <p
           id="done-status-confirm-body"
           className="mt-2 text-[13px] text-gray-700 leading-relaxed"
         >
-          {DONE_STATUS_CHANGE_CONFIRM_BODY}
+          {message}
         </p>
 
         {errorMessage && (
