@@ -26,8 +26,8 @@ export function formatInlineAmountLabel(rawAmount: string | number | undefined):
 }
 
 /**
- * Formats the Task Card inline metadata row in exact order:
- * Amount: [Amount] TK | [Payment Method] | Purchased Amount (TK): [Purchased Amount] | Supplier Name: [Supplier Name]
+ * Formats the summary inline metadata row in exact order:
+ * Budget Amount (TK): [Amount] TK | [Payment Method] | Purchased Amount (TK): [Purchased Amount] | Supplier Name: [Supplier Name]
  * Omits empty optional fields cleanly without zero or placeholder values.
  */
 export function buildTaskInlineMetadata(task: Partial<TaskItem> & { paymentType?: string }): string {
@@ -38,7 +38,7 @@ export function buildTaskInlineMetadata(task: Partial<TaskItem> & { paymentType?
   );
   const supplierName = String(task.supplierName ?? '').trim();
 
-  const parts: string[] = [`Amount: ${amountText}`, paymentMethod];
+  const parts: string[] = [`Budget Amount (TK): ${amountText}`, paymentMethod];
   if (purchasedAmountValue) {
     parts.push(`Purchased Amount (TK): ${purchasedAmountValue}`);
   }
@@ -52,7 +52,7 @@ export function buildTaskInlineMetadata(task: Partial<TaskItem> & { paymentType?
 export interface ExcelTaskRow {
   'Task No': number;
   Description: string;
-  'Amount (TK)': number;
+  'Budget Amount (TK)': number;
   'Payment Method': string;
   'Purchased Amount (TK)': number | string;
   'Supplier Name': string;
@@ -77,7 +77,7 @@ export function buildExcelRows(currentMonth: string, tasks: TaskItem[]): ExcelTa
     return {
       'Task No': taskNum,
       Description: t.description || '',
-      'Amount (TK)': parseRequiredNumericAmount(t.amount),
+      'Budget Amount (TK)': parseRequiredNumericAmount(t.amount),
       'Payment Method': t.paymentMode || '',
       'Purchased Amount (TK)': resolveOptionalExcelNumber(t.purchasedAmount),
       'Supplier Name': (t.supplierName || '').trim(),
@@ -98,7 +98,7 @@ export function buildCsvContent(currentMonth: string, tasks: TaskItem[]): string
   const headers = [
     'Task No',
     'Description',
-    'Amount (TK)',
+    'Budget Amount (TK)',
     'Payment Method',
     'Purchased Amount (TK)',
     'Supplier Name',

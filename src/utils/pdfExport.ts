@@ -10,7 +10,7 @@ const FONT_FAMILY_NAME = 'NotoBengali';
 export const PDF_TABLE_HEADERS = [
   'Task No',
   'Description',
-  'Amount (TK)',
+  'Budget Amount (TK)',
   'Payment Method',
   'Purchased Amount (TK)',
   'Supplier Name',

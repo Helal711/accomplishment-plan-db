@@ -603,11 +603,11 @@ export const TaskFormPage: React.FC = () => {
               />
             </div>
 
-            {/* 2. Amount & Payment Mode (2-col grid) */}
+            {/* 2. Budget Amount & Payment Mode (2-col grid) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1.5">
-                  Amount (TK)
+                  Budget Amount (TK)
                 </label>
                 <div className="relative">
                   <input

@@ -32,7 +32,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       ws['!cols'] = [
         { wch: 10 }, // Task No
         { wch: 45 }, // Description
-        { wch: 15 }, // Amount (TK)
+        { wch: 20 }, // Budget Amount (TK)
         { wch: 15 }, // Payment Method
         { wch: 22 }, // Purchased Amount (TK)
         { wch: 24 }, // Supplier Name
