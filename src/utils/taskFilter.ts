@@ -141,13 +141,32 @@ export function filterTasks(
 }
 
 /**
+ * Determines whether the Month/Year filter is actively narrowing tasks away from the default month.
+ * If defaultMonth is omitted, any non-empty selectedMonth is treated as an active month filter.
+ */
+export function isMonthFilterActive(
+  selectedMonth?: string | null,
+  defaultMonth?: string | null
+): boolean {
+  const normalizedSelected = normalizeSearchText(selectedMonth);
+  if (!normalizedSelected) return false;
+
+  const normalizedDefault = normalizeSearchText(defaultMonth);
+  if (!normalizedDefault) return true;
+
+  return normalizedSelected !== normalizedDefault;
+}
+
+/**
  * Formats a concise, user-facing task result count label derived strictly from
- * the final filtered task array length and active search/filter state.
+ * the final filtered task array length and all active filters (Search, Status, Month/Year).
  */
 export function formatTaskResultCountLabel(
   visibleCount: number,
   searchQuery: string,
-  selectedStatus: string | null
+  selectedStatus: string | null,
+  selectedMonth?: string | null,
+  defaultMonth?: string | null
 ): string {
   const safeCount = Number.isFinite(visibleCount) && visibleCount > 0 ? Math.floor(visibleCount) : 0;
   if (safeCount === 0) {
@@ -156,16 +175,14 @@ export function formatTaskResultCountLabel(
 
   const hasSearch = normalizeSearchText(searchQuery).length > 0;
   const hasStatusFilter = normalizeSearchText(selectedStatus).length > 0;
+  const hasMonthFilter = isMonthFilterActive(selectedMonth, defaultMonth);
   const taskNoun = safeCount === 1 ? 'Task' : 'Tasks';
 
-  if (hasSearch && hasStatusFilter) {
+  if (hasStatusFilter || hasMonthFilter) {
     return `Filtered Results: ${safeCount} ${taskNoun}`;
   }
   if (hasSearch) {
     return `Search Results: ${safeCount} ${taskNoun}`;
-  }
-  if (hasStatusFilter) {
-    return `Filtered Results: ${safeCount} ${taskNoun}`;
   }
   return `Total Tasks: ${safeCount}`;
 }

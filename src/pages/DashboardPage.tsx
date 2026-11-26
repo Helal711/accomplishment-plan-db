@@ -36,7 +36,11 @@ import {
   getCustomMonthsForUser,
   saveCustomMonthForUser,
 } from '../utils/monthUtils';
-import { filterTasks, formatTaskResultCountLabel } from '../utils/taskFilter';
+import {
+  filterTasks,
+  formatTaskResultCountLabel,
+  isMonthFilterActive,
+} from '../utils/taskFilter';
 import {
   buildSelectableTaskStatuses,
   isRemovedTaskStatus,
@@ -172,11 +176,20 @@ export const DashboardPage: React.FC = () => {
     return filterTasks(tasks, searchQuery, selectedStatus, selectedMonth);
   }, [tasks, searchQuery, selectedStatus, selectedMonth]);
 
+  const defaultMonth = getCurrentMonthYear();
   const hasActiveSearch = searchQuery.trim().length > 0;
-  const hasActiveFilter = hasActiveSearch || Boolean(selectedStatus);
+  const hasActiveMonthFilter = isMonthFilterActive(selectedMonth, defaultMonth);
+  const hasActiveFilter = hasActiveSearch || Boolean(selectedStatus) || hasActiveMonthFilter;
   const resultCountLabel = useMemo(
-    () => formatTaskResultCountLabel(filteredTasks.length, searchQuery, selectedStatus),
-    [filteredTasks.length, searchQuery, selectedStatus]
+    () =>
+      formatTaskResultCountLabel(
+        filteredTasks.length,
+        searchQuery,
+        selectedStatus,
+        selectedMonth,
+        defaultMonth
+      ),
+    [filteredTasks.length, searchQuery, selectedStatus, selectedMonth, defaultMonth]
   );
 
   const totalCount = tasks.length;
@@ -300,17 +313,27 @@ export const DashboardPage: React.FC = () => {
                 {resultCountLabel}
               </span>
               {hasActiveFilter ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedStatus(null);
-                    setSearchQuery('');
-                  }}
-                  data-testid="clear-active-filters-btn"
-                  className="text-[11px] sm:text-xs font-semibold text-app-primary hover:underline flex-shrink-0"
-                >
-                  Clear Filter
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {hasActiveMonthFilter && (
+                    <span className="text-[10.5px] sm:text-[11px] opacity-80">
+                      {selectedMonth}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatus(null);
+                      setSearchQuery('');
+                      if (hasActiveMonthFilter) {
+                        handleSelectMonth(defaultMonth);
+                      }
+                    }}
+                    data-testid="clear-active-filters-btn"
+                    className="text-[11px] sm:text-xs font-semibold text-app-primary hover:underline flex-shrink-0"
+                  >
+                    Clear Filter
+                  </button>
+                </div>
               ) : (
                 <span className="text-[10.5px] sm:text-[11px] text-gray-400 flex-shrink-0">
                   {selectedMonth}
