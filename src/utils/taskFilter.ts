@@ -139,3 +139,33 @@ export function filterTasks(
       matchesSearchQuery(task, searchQuery, fallbackMonth)
   );
 }
+
+/**
+ * Formats a concise, user-facing task result count label derived strictly from
+ * the final filtered task array length and active search/filter state.
+ */
+export function formatTaskResultCountLabel(
+  visibleCount: number,
+  searchQuery: string,
+  selectedStatus: string | null
+): string {
+  const safeCount = Number.isFinite(visibleCount) && visibleCount > 0 ? Math.floor(visibleCount) : 0;
+  if (safeCount === 0) {
+    return 'No Tasks Found (0)';
+  }
+
+  const hasSearch = normalizeSearchText(searchQuery).length > 0;
+  const hasStatusFilter = normalizeSearchText(selectedStatus).length > 0;
+  const taskNoun = safeCount === 1 ? 'Task' : 'Tasks';
+
+  if (hasSearch && hasStatusFilter) {
+    return `Filtered Results: ${safeCount} ${taskNoun}`;
+  }
+  if (hasSearch) {
+    return `Search Results: ${safeCount} ${taskNoun}`;
+  }
+  if (hasStatusFilter) {
+    return `Filtered Results: ${safeCount} ${taskNoun}`;
+  }
+  return `Total Tasks: ${safeCount}`;
+}

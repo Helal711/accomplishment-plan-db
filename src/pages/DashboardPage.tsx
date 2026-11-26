@@ -36,7 +36,7 @@ import {
   getCustomMonthsForUser,
   saveCustomMonthForUser,
 } from '../utils/monthUtils';
-import { filterTasks } from '../utils/taskFilter';
+import { filterTasks, formatTaskResultCountLabel } from '../utils/taskFilter';
 import {
   buildSelectableTaskStatuses,
   isRemovedTaskStatus,
@@ -172,6 +172,13 @@ export const DashboardPage: React.FC = () => {
     return filterTasks(tasks, searchQuery, selectedStatus, selectedMonth);
   }, [tasks, searchQuery, selectedStatus, selectedMonth]);
 
+  const hasActiveSearch = searchQuery.trim().length > 0;
+  const hasActiveFilter = hasActiveSearch || Boolean(selectedStatus);
+  const resultCountLabel = useMemo(
+    () => formatTaskResultCountLabel(filteredTasks.length, searchQuery, selectedStatus),
+    [filteredTasks.length, searchQuery, selectedStatus]
+  );
+
   const totalCount = tasks.length;
   const pendingCount = tasks.filter((t) => (t.status || '').toLowerCase() !== 'done').length;
 
@@ -278,6 +285,40 @@ export const DashboardPage: React.FC = () => {
 
         {/* Content Container with bottom padding for fixed footer & FAB */}
         <main className="max-w-4xl mx-auto px-1.5 sm:px-4 pt-1 pb-20 sm:py-4 sm:pb-28">
+          {!loadingTasks && (
+            <div
+              data-testid="task-result-count-bar"
+              className={`mb-1.5 sm:mb-2.5 px-2.5 sm:px-3 py-1.5 rounded-lg border flex items-center justify-between gap-2 text-[11px] sm:text-xs transition-colors ${
+                filteredTasks.length === 0
+                  ? 'bg-amber-50/70 border-amber-200 text-amber-800'
+                  : hasActiveFilter
+                    ? 'bg-blue-50/70 border-blue-200 text-app-primary'
+                    : 'bg-white border-gray-200 text-gray-600'
+              }`}
+            >
+              <span data-testid="task-result-count" className="font-semibold truncate">
+                {resultCountLabel}
+              </span>
+              {hasActiveFilter ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStatus(null);
+                    setSearchQuery('');
+                  }}
+                  data-testid="clear-active-filters-btn"
+                  className="text-[11px] sm:text-xs font-semibold text-app-primary hover:underline flex-shrink-0"
+                >
+                  Clear Filter
+                </button>
+              ) : (
+                <span className="text-[10.5px] sm:text-[11px] text-gray-400 flex-shrink-0">
+                  {selectedMonth}
+                </span>
+              )}
+            </div>
+          )}
+
           {loadingTasks ? (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-3 border-app-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>

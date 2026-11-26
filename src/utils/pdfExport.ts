@@ -1,8 +1,9 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import notoSansBengaliAssetUrl from '../assets/fonts/NotoSansBengali-Regular.ttf';
 import { TaskItem } from '../types';
-import { getStatusColor } from './statusColors';
+import { getStatusColor, StatusColorStyle } from './statusColors';
 import { normalizeBengaliDigits } from './purchaseAmount';
+import { normalizeStatusKey } from './statusOptions';
 
 const FONT_FILE_NAME = 'NotoSansBengali-Regular.ttf';
 const FONT_FAMILY_NAME = 'NotoBengali';
@@ -254,12 +255,116 @@ export function mapTaskToPdfRow(
   };
 }
 
-export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem[]): Record<string, unknown> {
-  const printDate = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+export interface PdfStatusSummaryItem {
+  status: string;
+  count: number;
+  color: StatusColorStyle;
+}
+
+const BD_SHORT_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+/**
+ * Formats the report generation timestamp in Bangladesh local time (Asia/Dhaka)
+ * using 12-hour format with AM/PM: "26 Nov 2026, 01:05 PM".
+ */
+export function formatBangladeshPrintDateTime(date: Date = new Date()): string {
+  const validDate = date instanceof Date && Number.isFinite(date.getTime()) ? date : new Date();
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Dhaka',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const parts = formatter.formatToParts(validDate);
+    const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === type)?.value || '';
+
+    const day = getPart('day').padStart(2, '0');
+    const month = getPart('month');
+    const year = getPart('year');
+    const hour = getPart('hour').padStart(2, '0');
+    const minute = getPart('minute').padStart(2, '0');
+    const dayPeriod = getPart('dayPeriod').toUpperCase();
+
+    if (day && month && year && hour && minute && (dayPeriod === 'AM' || dayPeriod === 'PM')) {
+      return `${day} ${month} ${year}, ${hour}:${minute} ${dayPeriod}`;
+    }
+  } catch {
+    // Fallback to fixed UTC+6 offset below (Asia/Dhaka has no DST)
+  }
+
+  const dhakaMs = validDate.getTime() + 6 * 60 * 60 * 1000;
+  const dhakaDate = new Date(dhakaMs);
+  const day = String(dhakaDate.getUTCDate()).padStart(2, '0');
+  const month = BD_SHORT_MONTHS[dhakaDate.getUTCMonth()];
+  const year = dhakaDate.getUTCFullYear();
+  const rawHour = dhakaDate.getUTCHours();
+  const period = rawHour >= 12 ? 'PM' : 'AM';
+  const hour12 = rawHour % 12 === 0 ? 12 : rawHour % 12;
+  const hour = String(hour12).padStart(2, '0');
+  const minute = String(dhakaDate.getUTCMinutes()).padStart(2, '0');
+
+  return `${day} ${month} ${year}, ${hour}:${minute} ${period}`;
+}
+
+/**
+ * Computes non-zero status counts exclusively from the exact exported tasks array.
+ * Every exported task is counted exactly once; zero-count statuses are completely omitted.
+ */
+export function buildPdfStatusSummary(tasks: TaskItem[]): PdfStatusSummaryItem[] {
+  const countsMap = new Map<string, { status: string; count: number }>();
+
+  for (const task of tasks) {
+    const taskRecord = task as unknown as Record<string, unknown>;
+    const rawStatus = safePdfText(taskRecord.status, '').trim();
+    const displayStatus = rawStatus || 'Unspecified';
+    const key = normalizeStatusKey(displayStatus);
+    const existing = countsMap.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      countsMap.set(key, { status: displayStatus, count: 1 });
+    }
+  }
+
+  return Array.from(countsMap.values())
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.status.localeCompare(b.status, undefined, { sensitivity: 'base' });
+    })
+    .map((entry) => ({
+      status: entry.status,
+      count: entry.count,
+      color: getStatusColor(entry.status),
+    }));
+}
+
+export function buildPdfDocumentDefinition(
+  currentMonth: string,
+  tasks: TaskItem[],
+  generatedAt: Date = new Date()
+): Record<string, unknown> {
+  const printDateTime = formatBangladeshPrintDateTime(generatedAt);
+  const statusSummary = buildPdfStatusSummary(tasks);
 
   // A3 landscape: 1190.55pt wide - 40pt horizontal margins (20pt each) = 1150.55pt usable width.
   // 15 column widths sum to 1038pt + 105pt horizontal padding (3.5pt * 2 * 15) + 5.6pt borders (16 * 0.35pt) = 1148.6pt.
@@ -378,7 +483,7 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
             {
               width: 'auto',
               alignment: 'right',
-              text: `Month/Year: ${currentMonth}  |  Total Tasks: ${tasks.length}  |  Date: ${printDate}`,
+              text: `Month/Year: ${currentMonth}  |  Total Tasks: ${tasks.length}  |  Print Date: ${printDateTime}`,
               fontSize: 9.5,
               color: '#4B5563',
               margin: [0, 7, 0, 0],
@@ -444,6 +549,49 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
       ],
     }),
     content: [
+      ...(statusSummary.length > 0
+        ? [
+            {
+              margin: [0, 0, 0, 7],
+              table: {
+                widths: ['*'],
+                body: [
+                  [
+                    {
+                      fillColor: '#F8FAFC',
+                      text: [
+                        { text: 'Status Summary:  ', color: '#334155', fontSize: 8.5 },
+                        ...statusSummary.flatMap((item, idx) => {
+                          const parts: Record<string, unknown>[] = [];
+                          if (idx > 0) {
+                            parts.push({ text: '   |   ', color: '#94A3B8', fontSize: 8.5 });
+                          }
+                          parts.push({ text: '• ', color: item.color.dot, fontSize: 9 });
+                          parts.push({
+                            text: `${item.status}: ${item.count}`,
+                            color: item.color.text,
+                            fontSize: 8.5,
+                          });
+                          return parts;
+                        }),
+                      ],
+                    },
+                  ],
+                ],
+              },
+              layout: {
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
+                hLineColor: () => '#CBD5E1',
+                vLineColor: () => '#CBD5E1',
+                paddingLeft: () => 8,
+                paddingRight: () => 8,
+                paddingTop: () => 4.5,
+                paddingBottom: () => 4.5,
+              },
+            },
+          ]
+        : []),
       {
         table: {
           headerRows: 1,
@@ -470,11 +618,12 @@ export function buildPdfDocumentDefinition(currentMonth: string, tasks: TaskItem
 export async function generateTasksPdfBuffer(
   currentMonth: string,
   tasks: TaskItem[],
-  customBase64Font?: string
+  customBase64Font?: string,
+  generatedAt: Date = new Date()
 ): Promise<Uint8Array> {
   await ensurePdfUnicodeFontRegistered(customBase64Font);
   const instance = getPdfMakeInstance();
-  const docDefinition = buildPdfDocumentDefinition(currentMonth, tasks);
+  const docDefinition = buildPdfDocumentDefinition(currentMonth, tasks, generatedAt);
   const pdfDoc = instance.createPdf(docDefinition);
   return pdfDoc.getBuffer();
 }
