@@ -97,6 +97,36 @@
     color 160ms ease;
 }
 
+/* Compact Status Filter Bar inside Android WebView across all device widths & orientations */
+[data-testid='status-summary-bar'][data-android-webview='true'] {
+  padding: 3px 6px;
+  column-gap: 3px;
+  row-gap: 2px;
+}
+
+[data-android-webview='true'] .status-filter-pill {
+  min-height: 17px;
+  padding: 1px 5px;
+  gap: 3px;
+  font-size: 8px;
+  line-height: 1;
+}
+
+[data-android-webview='true'] .status-filter-dot {
+  width: 4px;
+  height: 4px;
+}
+
+[data-android-webview='true'] .status-filter-label {
+  max-width: 96px;
+}
+
+[data-android-webview='true'] .status-filter-badge {
+  padding: 1px 4px;
+  font-size: 7.5px;
+  line-height: 1;
+}
+
 /* Task cards: smooth transitions with subtle lift strictly for desktop fine pointers */
 .task-card-interactive {
   transition:

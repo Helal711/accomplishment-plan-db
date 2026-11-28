@@ -173,6 +173,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   }, [isSearchOpen]);
 
   const visibleStatusCounts = filterVisibleDashboardStatusCounts(statusCounts);
+  const isAndroidWebView =
+    typeof window !== 'undefined' && 'AndroidDownloadBridge' in window;
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-sm">
@@ -414,11 +416,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       </div>
 
-      {/* Subheader Status Filter Bar: Crisp, solid, high-contrast pills on Mobile and Desktop */}
+      {/* Subheader Status Filter Bar: Ultra-compact on Android WebView/Mobile (<640px), unchanged on Desktop (>=640px) */}
       <div className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
         <div
           data-testid="status-summary-bar"
-          className="max-w-4xl mx-auto px-2 sm:px-4 py-1.5 sm:py-2 flex flex-wrap items-center gap-1.5 sm:gap-2"
+          data-android-webview={isAndroidWebView ? 'true' : undefined}
+          className="max-w-4xl mx-auto px-1.5 sm:px-4 py-[3px] sm:py-2 flex flex-wrap items-center gap-x-[3px] gap-y-[2px] sm:gap-2 overflow-x-hidden"
         >
           {/* Total Items Button (Corporate Blue Theme) */}
           <button
@@ -435,16 +438,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 '--pill-hover-border': selectedStatus === null ? '#115293' : '#1976D2',
               } as React.CSSProperties
             }
-            className="status-filter-pill inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 min-h-[26px] sm:min-h-[30px] max-w-full rounded-full text-[11px] sm:text-xs leading-4 font-semibold border cursor-pointer"
+            className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 min-h-[17px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[8px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
           >
-            <span>Total Items:</span>
+            <span className="whitespace-nowrap">Total Items:</span>
             <span
               style={{
                 backgroundColor: '#FFFFFF',
                 color: selectedStatus === null ? '#1976D2' : '#0D47A1',
                 borderColor: selectedStatus === null ? '#FFFFFF' : '#93C5FD',
               }}
-              className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none border transition-colors duration-150"
+              className="status-filter-badge px-[4px] sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[7.5px] sm:text-[11px] font-bold leading-none border flex-shrink-0 transition-colors duration-150"
             >
               <AnimatedCount value={totalCount} />
             </span>
@@ -473,21 +476,21 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       '--pill-hover-border': appearance.hoverBorderColor,
                     } as React.CSSProperties
                   }
-                  className="status-filter-pill inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 min-h-[26px] sm:min-h-[30px] max-w-full rounded-full text-[11px] sm:text-xs leading-4 font-semibold border cursor-pointer"
+                  className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 min-h-[17px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[8px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
                 >
                   <span
-                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
+                    className="status-filter-dot w-[4px] h-[4px] sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
                     style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
-                  <span className="truncate max-w-[130px] sm:max-w-[210px]">{st.name}:</span>
+                  <span className="status-filter-label truncate max-w-[96px] sm:max-w-[210px]">{st.name}:</span>
                   <span
                     style={{
                       backgroundColor: appearance.badgeBackgroundColor,
                       color: appearance.badgeTextColor,
                       borderColor: appearance.badgeBorderColor,
                     }}
-                    className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none border flex-shrink-0 transition-colors duration-150"
+                    className="status-filter-badge px-[4px] sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[7.5px] sm:text-[11px] font-bold leading-none border flex-shrink-0 transition-colors duration-150"
                   >
                     <AnimatedCount value={st.count} />
                   </span>
@@ -513,21 +516,21 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       '--pill-hover-border': appearance.hoverBorderColor,
                     } as React.CSSProperties
                   }
-                  className="status-filter-pill inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 min-h-[26px] sm:min-h-[30px] max-w-full rounded-full text-[11px] sm:text-xs leading-4 font-semibold border cursor-pointer"
+                  className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 min-h-[17px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[8px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
                 >
                   <span
-                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
+                    className="status-filter-dot w-[4px] h-[4px] sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
                     style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
-                  <span>Pending:</span>
+                  <span className="whitespace-nowrap">Pending:</span>
                   <span
                     style={{
                       backgroundColor: appearance.badgeBackgroundColor,
                       color: appearance.badgeTextColor,
                       borderColor: appearance.badgeBorderColor,
                     }}
-                    className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none border flex-shrink-0 transition-colors duration-150"
+                    className="status-filter-badge px-[4px] sm:px-1.5 py-[1px] sm:py-0.5 rounded-full text-[7.5px] sm:text-[11px] font-bold leading-none border flex-shrink-0 transition-colors duration-150"
                   >
                     <AnimatedCount value={pendingCount} />
                   </span>
