@@ -438,7 +438,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 '--pill-hover-border': selectedStatus === null ? '#115293' : '#1976D2',
               } as React.CSSProperties
             }
-            className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 min-h-[17px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[8px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
+            className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 h-[19px] sm:h-auto min-h-[19px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[9px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
           >
             <span className="whitespace-nowrap">Total Items:</span>
             <span
@@ -476,7 +476,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       '--pill-hover-border': appearance.hoverBorderColor,
                     } as React.CSSProperties
                   }
-                  className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 min-h-[17px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[8px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
+                  className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 h-[19px] sm:h-auto min-h-[19px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[9px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
                 >
                   <span
                     className="status-filter-dot w-[4px] h-[4px] sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
@@ -516,7 +516,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       '--pill-hover-border': appearance.hoverBorderColor,
                     } as React.CSSProperties
                   }
-                  className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 min-h-[17px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[8px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
+                  className="status-filter-pill inline-flex items-center gap-[3px] sm:gap-1.5 px-[5px] sm:px-2.5 py-[1px] sm:py-1 h-[19px] sm:h-auto min-h-[19px] sm:min-h-[30px] max-w-full min-w-0 rounded-full text-[9px] sm:text-xs leading-none sm:leading-4 font-semibold border cursor-pointer"
                 >
                   <span
                     className="status-filter-dot w-[4px] h-[4px] sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
