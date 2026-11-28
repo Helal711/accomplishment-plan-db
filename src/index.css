@@ -86,20 +86,15 @@
   animation: toastExit 0.22s ease-in forwards;
 }
 
-/* Status filter pills: smooth color, border, and subtle scale transitions */
+/* Status filter pills: crisp solid color-only transitions (no GPU blur, scale, or glow) */
 .status-filter-pill {
+  background-color: var(--pill-bg);
+  color: var(--pill-text);
+  border-color: var(--pill-border);
   transition:
-    background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 180ms ease;
-  will-change: transform;
-}
-
-.status-filter-pill:active {
-  transform: scale(0.97);
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 /* Task cards: smooth transitions with subtle lift strictly for desktop fine pointers */
@@ -112,11 +107,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .status-filter-pill:hover {
-    transform: translateY(-0.5px) scale(1.02);
-  }
-
-  .status-filter-pill:active {
-    transform: scale(0.97);
+    background-color: var(--pill-hover-bg, var(--pill-bg));
+    border-color: var(--pill-hover-border, var(--pill-border));
   }
 
   .task-card-interactive:hover {
@@ -230,8 +222,6 @@
     transition: none !important;
   }
 
-  .status-filter-pill:hover,
-  .status-filter-pill:active,
   .task-card-interactive:hover {
     transform: none !important;
   }

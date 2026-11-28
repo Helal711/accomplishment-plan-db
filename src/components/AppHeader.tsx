@@ -33,10 +33,12 @@ export interface StatusSummaryButtonAppearance {
   backgroundColor: string;
   textColor: string;
   borderColor: string;
-  boxShadow?: string;
+  hoverBackgroundColor: string;
+  hoverBorderColor: string;
   dotColor: string;
   badgeBackgroundColor: string;
   badgeTextColor: string;
+  badgeBorderColor: string;
 }
 
 export function getStatusSummaryButtonAppearance(
@@ -44,29 +46,49 @@ export function getStatusSummaryButtonAppearance(
   count: number,
   isActive: boolean
 ): StatusSummaryButtonAppearance {
+  const colors = getStatusColor(statusName);
+
+  if (isActive) {
+    return {
+      hasTasks: count > 0,
+      backgroundColor: colors.text,
+      textColor: '#FFFFFF',
+      borderColor: colors.text,
+      hoverBackgroundColor: colors.text,
+      hoverBorderColor: colors.text,
+      dotColor: colors.border,
+      badgeBackgroundColor: '#FFFFFF',
+      badgeTextColor: colors.text,
+      badgeBorderColor: '#FFFFFF',
+    };
+  }
+
   if (count <= 0) {
     return {
       hasTasks: false,
       backgroundColor: '#FFFFFF',
-      textColor: '#111827',
-      borderColor: isActive ? '#111827' : '#D1D5DB',
-      boxShadow: isActive ? '0 0 0 1.5px #111827' : undefined,
-      dotColor: '#9CA3AF',
-      badgeBackgroundColor: isActive ? '#111827' : '#F3F4F6',
-      badgeTextColor: isActive ? '#FFFFFF' : '#111827',
+      textColor: '#334155',
+      borderColor: '#CBD5E1',
+      hoverBackgroundColor: '#F1F5F9',
+      hoverBorderColor: '#94A3B8',
+      dotColor: colors.dot,
+      badgeBackgroundColor: '#F1F5F9',
+      badgeTextColor: '#1E293B',
+      badgeBorderColor: '#CBD5E1',
     };
   }
 
-  const colors = getStatusColor(statusName);
   return {
     hasTasks: true,
     backgroundColor: colors.bg,
     textColor: colors.text,
-    borderColor: isActive ? colors.dot : colors.border,
-    boxShadow: isActive ? `0 0 0 1.5px ${colors.dot}` : undefined,
+    borderColor: colors.border,
+    hoverBackgroundColor: colors.bg,
+    hoverBorderColor: colors.dot,
     dotColor: colors.dot,
-    badgeBackgroundColor: isActive ? colors.dot : 'rgba(255, 255, 255, 0.85)',
-    badgeTextColor: isActive ? '#FFFFFF' : colors.text,
+    badgeBackgroundColor: '#FFFFFF',
+    badgeTextColor: colors.text,
+    badgeBorderColor: colors.border,
   };
 }
 
@@ -392,32 +414,37 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       </div>
 
-      {/* Subheader Count Bar: Ultra-compact on mobile (<640px), compact pills on desktop (>=640px) */}
+      {/* Subheader Status Filter Bar: Crisp, solid, high-contrast pills on Mobile and Desktop */}
       <div className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
         <div
           data-testid="status-summary-bar"
-          className="max-w-4xl mx-auto px-1 sm:px-4 py-[2px] sm:py-2 flex flex-wrap items-center gap-x-[3px] gap-y-[2px] sm:gap-2"
+          className="max-w-4xl mx-auto px-2 sm:px-4 py-1.5 sm:py-2 flex flex-wrap items-center gap-1.5 sm:gap-2"
         >
-          {/* Total Items Button (Neutral Blue Theme) */}
+          {/* Total Items Button (Corporate Blue Theme) */}
           <button
             type="button"
             title={`Total Items: ${totalCount}`}
             onClick={() => onSelectStatus?.(null)}
             aria-pressed={selectedStatus === null}
-            className={`status-filter-pill relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border cursor-pointer ${
-              selectedStatus === null
-                ? 'bg-app-primary text-white border-app-primary shadow-sm ring-1 sm:ring-2 ring-blue-200'
-                : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100/80'
-            }`}
+            style={
+              {
+                '--pill-bg': selectedStatus === null ? '#1976D2' : '#EFF6FF',
+                '--pill-text': selectedStatus === null ? '#FFFFFF' : '#0D47A1',
+                '--pill-border': selectedStatus === null ? '#1976D2' : '#93C5FD',
+                '--pill-hover-bg': selectedStatus === null ? '#115293' : '#DBEAFE',
+                '--pill-hover-border': selectedStatus === null ? '#115293' : '#1976D2',
+              } as React.CSSProperties
+            }
+            className="status-filter-pill inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 min-h-[26px] sm:min-h-[30px] max-w-full rounded-full text-[11px] sm:text-xs leading-4 font-semibold border cursor-pointer"
           >
-            <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
             <span>Total Items:</span>
             <span
-              className={`px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none transition-colors duration-200 ${
-                selectedStatus === null
-                  ? 'bg-white/20 text-white'
-                  : 'bg-white text-blue-900 border border-blue-200'
-              }`}
+              style={{
+                backgroundColor: '#FFFFFF',
+                color: selectedStatus === null ? '#1976D2' : '#0D47A1',
+                borderColor: selectedStatus === null ? '#FFFFFF' : '#93C5FD',
+              }}
+              className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none border transition-colors duration-150"
             >
               <AnimatedCount value={totalCount} />
             </span>
@@ -437,29 +464,30 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   title={`${st.name}: ${st.count}`}
                   onClick={() => onSelectStatus?.(isActive ? null : st.name)}
                   aria-pressed={isActive}
-                  style={{
-                    backgroundColor: appearance.backgroundColor,
-                    color: appearance.textColor,
-                    borderColor: appearance.borderColor,
-                    boxShadow: appearance.boxShadow,
-                  }}
-                  className={`status-filter-pill relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border cursor-pointer hover:brightness-[0.97] ${
-                    isActive ? 'shadow-sm' : ''
-                  }`}
+                  style={
+                    {
+                      '--pill-bg': appearance.backgroundColor,
+                      '--pill-text': appearance.textColor,
+                      '--pill-border': appearance.borderColor,
+                      '--pill-hover-bg': appearance.hoverBackgroundColor,
+                      '--pill-hover-border': appearance.hoverBorderColor,
+                    } as React.CSSProperties
+                  }
+                  className="status-filter-pill inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 min-h-[26px] sm:min-h-[30px] max-w-full rounded-full text-[11px] sm:text-xs leading-4 font-semibold border cursor-pointer"
                 >
-                  <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
-                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0 transition-colors duration-200"
+                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
                     style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
-                  <span className="truncate max-w-[100px] sm:max-w-[210px]">{st.name}:</span>
+                  <span className="truncate max-w-[130px] sm:max-w-[210px]">{st.name}:</span>
                   <span
                     style={{
                       backgroundColor: appearance.badgeBackgroundColor,
                       color: appearance.badgeTextColor,
+                      borderColor: appearance.badgeBorderColor,
                     }}
-                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0 transition-colors duration-200"
+                    className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none border flex-shrink-0 transition-colors duration-150"
                   >
                     <AnimatedCount value={st.count} />
                   </span>
@@ -476,17 +504,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   title={`Pending: ${pendingCount}`}
                   onClick={() => onSelectStatus?.(isActive ? null : 'Pending')}
                   aria-pressed={isActive}
-                  style={{
-                    backgroundColor: appearance.backgroundColor,
-                    color: appearance.textColor,
-                    borderColor: appearance.borderColor,
-                    boxShadow: appearance.boxShadow,
-                  }}
-                  className="status-filter-pill relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border cursor-pointer hover:brightness-[0.97]"
+                  style={
+                    {
+                      '--pill-bg': appearance.backgroundColor,
+                      '--pill-text': appearance.textColor,
+                      '--pill-border': appearance.borderColor,
+                      '--pill-hover-bg': appearance.hoverBackgroundColor,
+                      '--pill-hover-border': appearance.hoverBorderColor,
+                    } as React.CSSProperties
+                  }
+                  className="status-filter-pill inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 min-h-[26px] sm:min-h-[30px] max-w-full rounded-full text-[11px] sm:text-xs leading-4 font-semibold border cursor-pointer"
                 >
-                  <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
-                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0 transition-colors duration-200"
+                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0 transition-colors duration-150"
                     style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
@@ -495,8 +525,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     style={{
                       backgroundColor: appearance.badgeBackgroundColor,
                       color: appearance.badgeTextColor,
+                      borderColor: appearance.badgeBorderColor,
                     }}
-                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0 transition-colors duration-200"
+                    className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none border flex-shrink-0 transition-colors duration-150"
                   >
                     <AnimatedCount value={pendingCount} />
                   </span>
