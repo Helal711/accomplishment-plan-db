@@ -18,6 +18,7 @@ import {
   isHiddenDashboardSummaryStatus,
 } from '../utils/statusOptions';
 import { isQuickSearchShortcut } from '../utils/keyboardShortcuts';
+import { AnimatedCount } from './AnimatedCount';
 
 export { HIDDEN_DASHBOARD_SUMMARY_STATUSES, isHiddenDashboardSummaryStatus };
 
@@ -79,6 +80,7 @@ interface AppHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onOpenMonthSelector: () => void;
+  isMonthModalOpen?: boolean;
   onOpenExport: () => void;
   onOpenStatusManager: () => void;
   onOpenAccountManager: () => void;
@@ -95,6 +97,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   searchQuery,
   onSearchChange,
   onOpenMonthSelector,
+  isMonthModalOpen = false,
   onOpenExport,
   onOpenStatusManager,
   onOpenAccountManager,
@@ -223,11 +226,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <button
             type="button"
             onClick={onOpenMonthSelector}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors font-semibold text-sm sm:text-base tracking-wide"
+            aria-expanded={isMonthModalOpen}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors duration-200 font-semibold text-sm sm:text-base tracking-wide"
           >
             <Calendar className="w-4 h-4 text-white/90" />
             <span>{selectedMonth}</span>
-            <ChevronDown className="w-4 h-4 text-white/90" />
+            <ChevronDown
+              className={`w-4 h-4 text-white/90 transition-transform duration-200 ${
+                isMonthModalOpen ? 'rotate-180' : ''
+              }`}
+            />
           </button>
 
           {/* Right Actions: Export (⤓) & Search (🔍) */}
@@ -244,9 +252,20 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <button
               type="button"
               onClick={() => {
-                setIsSearchOpen(!isSearchOpen);
-                if (isSearchOpen) onSearchChange('');
+                if (isSearchOpen) {
+                  setIsSearchOpen(false);
+                  onSearchChange('');
+                } else {
+                  setIsSearchOpen(true);
+                  requestAnimationFrame(() => {
+                    searchInputRef.current?.focus();
+                  });
+                }
               }}
+              aria-label={isSearchOpen ? 'Close search' : 'Search tasks'}
+              aria-expanded={isSearchOpen}
+              aria-controls="dashboard-search-box"
+              data-testid="header-search-toggle-btn"
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                 isSearchOpen ? 'bg-white/20 text-white' : 'text-white/90 hover:text-white hover:bg-white/10'
               }`}
@@ -258,32 +277,61 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       </div>
 
-      {/* Expandable Search Bar */}
-      {isSearchOpen && (
-        <div className="bg-white border-b border-gray-200 px-1.5 sm:px-4 py-1 sm:py-2 animate-fadeIn">
-          <div className="max-w-4xl mx-auto relative flex items-center">
-            <Search className="w-4 h-4 text-gray-400 absolute left-2.5 sm:left-3 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search description, amount, payment mode, account, status, category, remarks..."
-              autoFocus
-              className="w-full pl-8 sm:pl-9 pr-8 py-1 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary focus:border-transparent"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchChange('')}
-                className="absolute right-2 sm:right-2.5 p-1 text-gray-400 hover:text-gray-600 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+      {/* Compact Expandable Search Box: Smooth open/close transition, 248px top-right on Desktop, full-width on Mobile */}
+      <div
+        id="dashboard-search-box"
+        data-testid="header-search-container"
+        data-open={isSearchOpen ? 'true' : 'false'}
+        aria-hidden={!isSearchOpen}
+        className="search-panel-collapse bg-white"
+      >
+        <div className="search-panel-inner">
+          <div className="px-2 sm:px-4 py-1.5">
+            <div className="max-w-4xl mx-auto flex justify-end">
+              <div className="relative flex items-center w-full sm:w-[248px]">
+                <Search className="w-3.5 h-3.5 text-app-primary/70 absolute left-2.5 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  tabIndex={isSearchOpen ? 0 : -1}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      if (searchQuery) {
+                        onSearchChange('');
+                      } else {
+                        setIsSearchOpen(false);
+                      }
+                    }
+                  }}
+                  aria-label="Search tasks"
+                  data-testid="header-search-input"
+                  placeholder="Search tasks..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-gray-50/70 focus:bg-white text-gray-800 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary/30 focus:border-app-primary transition-all duration-200"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    tabIndex={isSearchOpen ? 0 : -1}
+                    onClick={() => {
+                      onSearchChange('');
+                      searchInputRef.current?.focus();
+                    }}
+                    aria-label="Clear search"
+                    title="Clear search"
+                    data-testid="header-search-clear-btn"
+                    className="absolute right-1.5 p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Subheader Count Bar: Ultra-compact on mobile (<640px), compact pills on desktop (>=640px) */}
       <div className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
@@ -297,7 +345,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             title={`Total Items: ${totalCount}`}
             onClick={() => onSelectStatus?.(null)}
             aria-pressed={selectedStatus === null}
-            className={`relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer ${
+            className={`status-filter-pill relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border cursor-pointer ${
               selectedStatus === null
                 ? 'bg-app-primary text-white border-app-primary shadow-sm ring-1 sm:ring-2 ring-blue-200'
                 : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100/80'
@@ -306,13 +354,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
             <span>Total Items:</span>
             <span
-              className={`px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none ${
+              className={`px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none transition-colors duration-200 ${
                 selectedStatus === null
                   ? 'bg-white/20 text-white'
                   : 'bg-white text-blue-900 border border-blue-200'
               }`}
             >
-              {totalCount}
+              <AnimatedCount value={totalCount} />
             </span>
           </button>
 
@@ -336,13 +384,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     borderColor: appearance.borderColor,
                     boxShadow: appearance.boxShadow,
                   }}
-                  className={`relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97] ${
+                  className={`status-filter-pill relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border cursor-pointer hover:brightness-[0.97] ${
                     isActive ? 'shadow-sm' : ''
                   }`}
                 >
                   <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
-                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
+                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0 transition-colors duration-200"
                     style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
@@ -352,9 +400,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       backgroundColor: appearance.badgeBackgroundColor,
                       color: appearance.badgeTextColor,
                     }}
-                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0"
+                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0 transition-colors duration-200"
                   >
-                    {st.count}
+                    <AnimatedCount value={st.count} />
                   </span>
                 </button>
               );
@@ -375,11 +423,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     borderColor: appearance.borderColor,
                     boxShadow: appearance.boxShadow,
                   }}
-                  className="relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border transition-all cursor-pointer hover:brightness-[0.97]"
+                  className="status-filter-pill relative inline-flex items-center gap-[2px] sm:gap-1 px-1 sm:px-2.5 py-[1px] sm:py-[5px] min-h-[19px] sm:min-h-[30px] max-w-full rounded-full text-[9px] sm:text-xs leading-none sm:leading-tight font-semibold border cursor-pointer hover:brightness-[0.97]"
                 >
                   <span aria-hidden="true" className="absolute -inset-y-[3px] -inset-x-[2px] sm:hidden" />
                   <span
-                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0"
+                    className="w-[4px] h-[4px] sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0 transition-colors duration-200"
                     style={{ backgroundColor: appearance.dotColor }}
                     aria-hidden="true"
                   />
@@ -389,9 +437,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       backgroundColor: appearance.badgeBackgroundColor,
                       color: appearance.badgeTextColor,
                     }}
-                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0"
+                    className="px-1 sm:px-1.5 py-0 sm:py-0.5 rounded-full text-[8px] sm:text-[11px] font-bold leading-none flex-shrink-0 transition-colors duration-200"
                   >
-                    {pendingCount}
+                    <AnimatedCount value={pendingCount} />
                   </span>
                 </button>
               );

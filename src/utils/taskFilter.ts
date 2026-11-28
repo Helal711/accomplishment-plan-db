@@ -37,9 +37,10 @@ export function normalizeAmountForSearch(amount: unknown): string[] {
 }
 
 /**
- * Extracts all searchable fields from a TaskItem into normalized strings.
+ * Extracts all searchable task fields into normalized strings.
+ * Explicitly excludes Month/Year (`monthYear`), which is controlled solely by the Month Dropdown.
  */
-export function extractSearchableTaskFields(task: TaskItem, fallbackMonth?: string): string[] {
+export function extractSearchableTaskFields(task: TaskItem): string[] {
   const taskWithOptionalPaymentType = task as TaskItem & { paymentType?: string };
   const amountVariants = normalizeAmountForSearch(task.amount);
   const purchasedAmountVariants = normalizeAmountForSearch(task.purchasedAmount);
@@ -65,7 +66,6 @@ export function extractSearchableTaskFields(task: TaskItem, fallbackMonth?: stri
     normalizeSearchText(task.priority),
     normalizeSearchText(task.expectedDate),
     normalizeSearchText(task.remarks),
-    normalizeSearchText(task.monthYear || fallbackMonth),
   ];
 
   if (taskNumStr) {
@@ -77,17 +77,14 @@ export function extractSearchableTaskFields(task: TaskItem, fallbackMonth?: stri
 }
 
 /**
- * Checks whether a TaskItem matches the search query across all relevant task fields.
+ * Checks whether a TaskItem matches the search query across relevant task fields
+ * (never matching the Month/Year field).
  */
-export function matchesSearchQuery(
-  task: TaskItem,
-  searchQuery: string,
-  fallbackMonth?: string
-): boolean {
+export function matchesSearchQuery(task: TaskItem, searchQuery: string): boolean {
   const normalizedQuery = normalizeSearchText(searchQuery);
   if (!normalizedQuery) return true;
 
-  const searchableFields = extractSearchableTaskFields(task, fallbackMonth);
+  const searchableFields = extractSearchableTaskFields(task);
   if (searchableFields.some((field) => field.includes(normalizedQuery))) {
     return true;
   }
@@ -114,6 +111,19 @@ export function matchesSearchQuery(
 }
 
 /**
+ * Checks whether a TaskItem belongs to the selected Month/Year.
+ */
+export function matchesMonthFilter(task: TaskItem, selectedMonth?: string | null): boolean {
+  const normalizedSelected = normalizeSearchText(selectedMonth);
+  if (!normalizedSelected) return true;
+
+  const normalizedTaskMonth = normalizeSearchText(task.monthYear);
+  if (!normalizedTaskMonth) return true;
+
+  return normalizedTaskMonth === normalizedSelected;
+}
+
+/**
  * Checks whether a TaskItem matches the selected status filter (null = Total Items / All).
  */
 export function matchesStatusFilter(task: TaskItem, selectedStatus: string | null): boolean {
@@ -122,22 +132,42 @@ export function matchesStatusFilter(task: TaskItem, selectedStatus: string | nul
 }
 
 /**
- * Combines status filtering and multi-field search filtering simultaneously.
+ * Combines Month/Year scoping, Status filtering, and multi-field Search filtering simultaneously.
+ * Search never matches the Month/Year field.
  */
 export function filterTasks(
   tasks: TaskItem[],
   searchQuery: string,
   selectedStatus: string | null,
-  fallbackMonth?: string
+  selectedMonth?: string | null
 ): TaskItem[] {
   const hasSearch = normalizeSearchText(searchQuery).length > 0;
-  if (!hasSearch && !selectedStatus) return tasks;
+  const hasMonth = normalizeSearchText(selectedMonth).length > 0;
+  if (!hasSearch && !selectedStatus && !hasMonth) return tasks;
 
   return tasks.filter(
     (task) =>
+      matchesMonthFilter(task, selectedMonth) &&
       matchesStatusFilter(task, selectedStatus) &&
-      matchesSearchQuery(task, searchQuery, fallbackMonth)
+      matchesSearchQuery(task, searchQuery)
   );
+}
+
+export interface TaskFilterState {
+  searchQuery: string;
+  selectedStatus: string | null;
+  selectedMonth: string;
+}
+
+/**
+ * Clears only Search and Status filters while strictly preserving the currently selected Month/Year.
+ */
+export function clearSearchAndStatusFilters(state: TaskFilterState): TaskFilterState {
+  return {
+    searchQuery: '',
+    selectedStatus: null,
+    selectedMonth: state.selectedMonth,
+  };
 }
 
 /**

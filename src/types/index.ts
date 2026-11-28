@@ -225,7 +225,7 @@ export const DEFAULT_UNITS = ['Unit-1', 'Unit-2', 'Unit-3'];
 
 export const DEFAULT_PAYMENTS = ['Cash', 'Bank', 'Cheque'];
 
-export const DEFAULT_MONTHS = ['Nov-2026', 'Dec-2026', 'Jan-2027', 'Oct-2026'];
+export const DEFAULT_MONTHS = ['Dec-2026', 'Nov-2026', 'Jan-2027', 'Oct-2026'];
 
 export const DEFAULT_CATEGORIES = [
   'Furniture & fixture',

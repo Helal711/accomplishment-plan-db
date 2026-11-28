@@ -13,6 +13,8 @@ interface TaskCardProps {
   onCardClick: () => void;
   onStatusChange: (newStatus: string) => void;
   onDeleteClick?: () => void;
+  animateEntrance?: boolean;
+  entranceDelayMs?: number;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -22,6 +24,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onCardClick,
   onStatusChange,
   onDeleteClick,
+  animateEntrance = false,
+  entranceDelayMs = 0,
 }) => {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -52,7 +56,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   return (
     <div
       onClick={onCardClick}
-      className="group relative bg-white rounded-lg border border-app-border hover:border-blue-400 hover:shadow-sm transition-all cursor-pointer p-3 sm:p-3.5 select-none"
+      style={
+        animateEntrance && entranceDelayMs > 0
+          ? { animationDelay: `${entranceDelayMs}ms` }
+          : undefined
+      }
+      className={`task-card-interactive group relative bg-white rounded-lg border border-app-border hover:border-blue-400 cursor-pointer p-3 sm:p-3.5 select-none ${
+        animateEntrance ? 'animate-card-enter' : ''
+      }`}
     >
       {/* Row 1: Task Title & Priority Badge */}
       <div className="flex items-center justify-between gap-2">

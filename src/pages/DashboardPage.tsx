@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Inbox } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -30,6 +30,7 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DoneStatusConfirmDialog } from '../components/DoneStatusConfirmDialog';
 import { DeveloperFooter } from '../components/DeveloperFooter';
 import {
+  DEFAULT_DASHBOARD_MONTH,
   getCurrentMonthYear,
   getSavedMonthForUser,
   saveMonthForUser,
@@ -37,9 +38,11 @@ import {
   saveCustomMonthForUser,
 } from '../utils/monthUtils';
 import {
+  clearSearchAndStatusFilters,
   filterTasks,
   formatTaskResultCountLabel,
   isMonthFilterActive,
+  matchesMonthFilter,
 } from '../utils/taskFilter';
 import {
   buildSelectableTaskStatuses,
@@ -53,7 +56,7 @@ function buildAvailableMonths(uid: string | undefined | null, activeMonth: strin
   const current = getCurrentMonthYear();
   const seen = new Set<string>();
   const list: string[] = [];
-  for (const m of [activeMonth, current, ...DEFAULT_MONTHS, ...custom]) {
+  for (const m of [activeMonth, DEFAULT_DASHBOARD_MONTH, current, ...DEFAULT_MONTHS, ...custom]) {
     const trimmed = (m || '').trim();
     if (!trimmed) continue;
     const key = trimmed.toLowerCase();
@@ -96,6 +99,20 @@ export const DashboardPage: React.FC = () => {
   } | null>(null);
   const [confirmingDoneStatus, setConfirmingDoneStatus] = useState<boolean>(false);
   const [doneStatusError, setDoneStatusError] = useState<string | null>(null);
+  const [playInitialEntrance, setPlayInitialEntrance] = useState<boolean>(false);
+  const hasCompletedInitialEntranceRef = useRef<boolean>(false);
+
+  // Trigger subtle Dashboard & Task Card entrance only once on initial load (never replay on minor updates)
+  useEffect(() => {
+    if (!loadingTasks && !hasCompletedInitialEntranceRef.current) {
+      hasCompletedInitialEntranceRef.current = true;
+      setPlayInitialEntrance(true);
+      const timer = window.setTimeout(() => {
+        setPlayInitialEntrance(false);
+      }, 550);
+      return () => window.clearTimeout(timer);
+    }
+  }, [loadingTasks]);
 
   // Restore user-scoped month preference or reset when logged out/switched
   useEffect(() => {
@@ -107,7 +124,7 @@ export const DashboardPage: React.FC = () => {
       setSearchQuery('');
       setSelectedStatus(null);
       setLoadingTasks(false);
-      const fallbackMonth = getCurrentMonthYear();
+      const fallbackMonth = DEFAULT_DASHBOARD_MONTH;
       setSelectedMonth(fallbackMonth);
       setAvailableMonths(buildAvailableMonths(null, fallbackMonth));
       return;
@@ -171,15 +188,33 @@ export const DashboardPage: React.FC = () => {
     return buildSelectableTaskStatuses([...DEFAULT_STATUSES, ...custom]);
   }, [statuses]);
 
-  // Filter tasks by both status filter and multi-field search query
-  const filteredTasks = useMemo(() => {
-    return filterTasks(tasks, searchQuery, selectedStatus, selectedMonth);
-  }, [tasks, searchQuery, selectedStatus, selectedMonth]);
+  // Ensure all dashboard counts and cards are strictly scoped to the selected Month/Year
+  const monthTasks = useMemo(() => {
+    return tasks.filter((t) => matchesMonthFilter(t, selectedMonth));
+  }, [tasks, selectedMonth]);
 
-  const defaultMonth = getCurrentMonthYear();
+  // Filter selected-month tasks by Status filter and multi-field Search (never matching Month/Year)
+  const filteredTasks = useMemo(() => {
+    return filterTasks(monthTasks, searchQuery, selectedStatus, selectedMonth);
+  }, [monthTasks, searchQuery, selectedStatus, selectedMonth]);
+
+  const defaultMonth = DEFAULT_DASHBOARD_MONTH;
   const hasActiveSearch = searchQuery.trim().length > 0;
+  const hasActiveStatusFilter = Boolean(selectedStatus);
+  const hasClearableFilter = hasActiveSearch || hasActiveStatusFilter;
   const hasActiveMonthFilter = isMonthFilterActive(selectedMonth, defaultMonth);
-  const hasActiveFilter = hasActiveSearch || Boolean(selectedStatus) || hasActiveMonthFilter;
+  const hasActiveFilter = hasClearableFilter || hasActiveMonthFilter;
+
+  const handleClearFilters = () => {
+    const cleared = clearSearchAndStatusFilters({
+      searchQuery,
+      selectedStatus,
+      selectedMonth,
+    });
+    setSelectedStatus(cleared.selectedStatus);
+    setSearchQuery(cleared.searchQuery);
+  };
+
   const resultCountLabel = useMemo(
     () =>
       formatTaskResultCountLabel(
@@ -192,19 +227,19 @@ export const DashboardPage: React.FC = () => {
     [filteredTasks.length, searchQuery, selectedStatus, selectedMonth, defaultMonth]
   );
 
-  const totalCount = tasks.length;
-  const pendingCount = tasks.filter((t) => (t.status || '').toLowerCase() !== 'done').length;
+  const totalCount = monthTasks.length;
+  const pendingCount = monthTasks.filter((t) => (t.status || '').toLowerCase() !== 'done').length;
 
   // Dynamically compute counts for all visible dashboard summary statuses in the selected month
   const statusCounts = useMemo(() => {
     const allStatusCounts = availableStatusNames.map((st) => {
-      const count = tasks.filter(
+      const count = monthTasks.filter(
         (t) => (t.status || '').toLowerCase().trim() === st.toLowerCase().trim()
       ).length;
       return { name: st, count };
     });
     return filterVisibleDashboardStatusCounts(allStatusCounts);
-  }, [availableStatusNames, tasks]);
+  }, [availableStatusNames, monthTasks]);
 
   const handleStatusChange = async (
     taskId: string,
@@ -290,6 +325,7 @@ export const DashboardPage: React.FC = () => {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenMonthSelector={() => setShowMonthModal(true)}
+          isMonthModalOpen={showMonthModal}
           onOpenExport={() => setShowExportModal(true)}
           onOpenStatusManager={() => setShowStatusModal(true)}
           onOpenAccountManager={() => setShowAccountModal(true)}
@@ -297,7 +333,11 @@ export const DashboardPage: React.FC = () => {
         />
 
         {/* Content Container with bottom padding for fixed footer & FAB */}
-        <main className="max-w-4xl mx-auto px-1.5 sm:px-4 pt-1 pb-20 sm:py-4 sm:pb-28">
+        <main
+          className={`max-w-4xl mx-auto px-1.5 sm:px-4 pt-1 pb-20 sm:py-4 sm:pb-28 ${
+            playInitialEntrance ? 'animate-dashboard-enter' : ''
+          }`}
+        >
           {!loadingTasks && (
             <div
               data-testid="task-result-count-bar"
@@ -312,33 +352,26 @@ export const DashboardPage: React.FC = () => {
               <span data-testid="task-result-count" className="font-semibold truncate">
                 {resultCountLabel}
               </span>
-              {hasActiveFilter ? (
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {hasActiveMonthFilter && (
-                    <span className="text-[10.5px] sm:text-[11px] opacity-80">
-                      {selectedMonth}
-                    </span>
-                  )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span
+                  data-testid="active-month-label"
+                  className={`text-[10.5px] sm:text-[11px] flex-shrink-0 ${
+                    hasActiveFilter ? 'opacity-80' : 'text-gray-400'
+                  }`}
+                >
+                  {selectedMonth}
+                </span>
+                {hasClearableFilter && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedStatus(null);
-                      setSearchQuery('');
-                      if (hasActiveMonthFilter) {
-                        handleSelectMonth(defaultMonth);
-                      }
-                    }}
+                    onClick={handleClearFilters}
                     data-testid="clear-active-filters-btn"
-                    className="text-[11px] sm:text-xs font-semibold text-app-primary hover:underline flex-shrink-0"
+                    className="text-[11px] sm:text-xs font-semibold text-app-primary hover:underline flex-shrink-0 py-0.5 px-1 -mr-1"
                   >
                     Clear Filter
                   </button>
-                </div>
-              ) : (
-                <span className="text-[10.5px] sm:text-[11px] text-gray-400 flex-shrink-0">
-                  {selectedMonth}
-                </span>
-              )}
+                )}
+              </div>
             </div>
           )}
 
@@ -353,22 +386,19 @@ export const DashboardPage: React.FC = () => {
                 <Inbox className="w-6 h-6" />
               </div>
               <h3 className="text-base font-semibold text-gray-800">
-                {searchQuery.trim() || selectedStatus
+                {hasClearableFilter
                   ? 'No matching tasks found'
                   : `No tasks found for ${selectedMonth}`}
               </h3>
               <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                {searchQuery.trim() || selectedStatus
+                {hasClearableFilter
                   ? 'Try clearing the active status filter or adjusting your search terms.'
                   : 'Get started by creating a new task using the blue "+" button.'}
               </p>
-              {searchQuery.trim() || selectedStatus ? (
+              {hasClearableFilter ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedStatus(null);
-                    setSearchQuery('');
-                  }}
+                  onClick={handleClearFilters}
                   className="mt-4 inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-app-primary text-xs font-semibold rounded-lg border border-blue-200 transition-colors"
                 >
                   <span>Show All Tasks</span>
@@ -392,6 +422,8 @@ export const DashboardPage: React.FC = () => {
                   task={task}
                   serialNumber={task.taskNumber}
                   availableStatuses={availableStatusNames}
+                  animateEntrance={playInitialEntrance}
+                  entranceDelayMs={playInitialEntrance ? Math.min(index, 8) * 24 : 0}
                   onCardClick={() => navigate(`/tasks/${task.id}`, { state: { task } })}
                   onStatusChange={(newStatus) =>
                     handleStatusChange(task.id, task.status, newStatus)

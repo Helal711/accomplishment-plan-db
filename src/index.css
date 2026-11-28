@@ -22,8 +22,189 @@
   }
 }
 
+@keyframes dashboardFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastExit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+  }
+}
+
 .animate-fadeIn {
-  animation: fadeIn 0.15s ease-out forwards;
+  animation: fadeIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-dashboard-enter {
+  animation: dashboardFadeSlideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-card-enter {
+  animation: cardFadeSlideUp 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-toast-enter {
+  animation: toastEnter 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-toast-exit {
+  animation: toastExit 0.22s ease-in forwards;
+}
+
+/* Status filter pills: smooth color, border, and subtle scale transitions */
+.status-filter-pill {
+  transition:
+    background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 180ms ease;
+  will-change: transform;
+}
+
+.status-filter-pill:active {
+  transform: scale(0.97);
+}
+
+/* Task cards: smooth transitions with subtle lift strictly for desktop fine pointers */
+.task-card-interactive {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .status-filter-pill:hover {
+    transform: translateY(-0.5px) scale(1.02);
+  }
+
+  .status-filter-pill:active {
+    transform: scale(0.97);
+  }
+
+  .task-card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 6px 16px -4px rgba(15, 23, 42, 0.08),
+      0 2px 6px -2px rgba(15, 23, 42, 0.04);
+  }
+}
+
+/* Smooth Search Box open/close collapse transition (0px height when closed) */
+.search-panel-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  border-bottom: 0 solid transparent;
+  transition:
+    grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.search-panel-collapse[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.search-panel-inner {
+  overflow: hidden;
+  transform: translateY(-4px);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.search-panel-collapse[data-open='true'] .search-panel-inner {
+  transform: translateY(0);
+}
+
+/* Smooth Month Dropdown modal open/close transitions */
+.modal-backdrop-transition {
+  opacity: 0;
+  transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modal-backdrop-transition[data-state='open'] {
+  opacity: 1;
+}
+
+.modal-panel-transition {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  transition:
+    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modal-panel-transition[data-state='open'] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Respect user reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn,
+  .animate-dashboard-enter,
+  .animate-card-enter,
+  .animate-toast-enter,
+  .animate-toast-exit {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .status-filter-pill,
+  .task-card-interactive,
+  .search-panel-collapse,
+  .search-panel-inner,
+  .modal-backdrop-transition,
+  .modal-panel-transition {
+    transition: none !important;
+  }
+
+  .status-filter-pill:hover,
+  .status-filter-pill:active,
+  .task-card-interactive:hover {
+    transform: none !important;
+  }
 }
 
 /* Custom scrollbars */

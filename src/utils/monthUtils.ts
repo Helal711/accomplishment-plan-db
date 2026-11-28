@@ -13,6 +13,8 @@ export const MONTH_ABBRS = [
   'Dec',
 ] as const;
 
+export const DEFAULT_DASHBOARD_MONTH = 'Dec-2026';
+
 const MONTH_PATTERN = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{4})$/i;
 const STORAGE_PATTERN = /^(\d{4})-(\d{2})$/;
 
@@ -55,7 +57,7 @@ export function toStorageMonth(monthYear: string): string {
  */
 export function fromStorageMonth(stored: string): string {
   const trimmed = (stored || '').trim();
-  if (!trimmed) return getCurrentMonthYear();
+  if (!trimmed) return DEFAULT_DASHBOARD_MONTH;
 
   const storageMatch = trimmed.match(STORAGE_PATTERN);
   if (storageMatch) {
@@ -84,10 +86,10 @@ export function getCustomMonthsStorageKey(uid: string): string {
 
 /**
  * Restores the user's saved month preference from localStorage (scoped by Firebase UID).
- * Falls back to the real current month & year on first visit when no saved month exists.
+ * Falls back to the default Dashboard month ("Dec-2026") when no saved month exists.
  */
 export function getSavedMonthForUser(uid?: string | null): string {
-  if (!uid) return getCurrentMonthYear();
+  if (!uid) return DEFAULT_DASHBOARD_MONTH;
   try {
     const saved = window.localStorage.getItem(getSelectedMonthStorageKey(uid));
     if (saved && saved.trim()) {
@@ -96,7 +98,7 @@ export function getSavedMonthForUser(uid?: string | null): string {
   } catch (err) {
     console.warn('Unable to read saved month from localStorage:', err);
   }
-  return getCurrentMonthYear();
+  return DEFAULT_DASHBOARD_MONTH;
 }
 
 /**

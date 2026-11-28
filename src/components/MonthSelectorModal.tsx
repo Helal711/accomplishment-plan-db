@@ -28,18 +28,53 @@ export const MonthSelectorModal: React.FC<MonthSelectorModalProps> = ({
   const [newMonthInput, setNewMonthInput] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState('');
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isVisible, setIsVisible] = useState(isOpen);
 
   useEffect(() => {
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     if (isOpen) {
       const parsed = parseMonthYear(selectedMonth);
       setPickerYear(parsed?.year ?? realCurrentYear);
       setIsAdding(false);
       setError('');
       setNewMonthInput('');
+      setShouldRender(true);
+
+      if (reducedMotion) {
+        setIsVisible(true);
+        return;
+      }
+
+      let raf2 = 0;
+      const raf1 = window.requestAnimationFrame(() => {
+        raf2 = window.requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(raf1);
+        if (raf2) window.cancelAnimationFrame(raf2);
+      };
     }
+
+    setIsVisible(false);
+    if (reducedMotion) {
+      setShouldRender(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShouldRender(false);
+    }, 220);
+    return () => window.clearTimeout(timer);
   }, [isOpen, selectedMonth, realCurrentYear]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const yearOptions = (() => {
     const minYear = Math.min(pickerYear - 2, realCurrentYear - 5);
@@ -76,13 +111,19 @@ export const MonthSelectorModal: React.FC<MonthSelectorModalProps> = ({
     onClose();
   };
 
+  const transitionState = isVisible ? 'open' : 'closed';
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn"
+      data-testid="month-selector-backdrop"
+      data-state={transitionState}
+      className="modal-backdrop-transition fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl max-w-sm w-full p-5 shadow-2xl border border-gray-100"
+        data-testid="month-selector-panel"
+        data-state={transitionState}
+        className="modal-panel-transition bg-white rounded-xl max-w-sm w-full p-5 shadow-2xl border border-gray-100"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">

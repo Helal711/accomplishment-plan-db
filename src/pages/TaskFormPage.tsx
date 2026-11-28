@@ -135,6 +135,29 @@ export const TaskFormPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [isToastExiting, setIsToastExiting] = useState(false);
+  const toastTimersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return () => {
+      toastTimersRef.current.forEach((id) => window.clearTimeout(id));
+      toastTimersRef.current = [];
+    };
+  }, []);
+
+  const showSuccessAndNavigate = (message: string) => {
+    toastTimersRef.current.forEach((id) => window.clearTimeout(id));
+    toastTimersRef.current = [];
+    setIsToastExiting(false);
+    setSuccessToast(message);
+    const exitTimer = window.setTimeout(() => {
+      setIsToastExiting(true);
+    }, 480);
+    const navTimer = window.setTimeout(() => {
+      navigate('/');
+    }, 700);
+    toastTimersRef.current = [exitTimer, navTimer];
+  };
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -260,10 +283,7 @@ export const TaskFormPage: React.FC = () => {
       await updateTask(taskId, pendingDoneUpdate.payload);
       setOriginalSnapshot(pendingDoneUpdate.snapshot);
       setPendingDoneUpdate(null);
-      setSuccessToast('Task Updated Successfully!');
-      setTimeout(() => {
-        navigate('/');
-      }, 700);
+      showSuccessAndNavigate('Task Updated Successfully!');
     } catch (err: any) {
       console.error('Error saving task:', err);
       const message = err?.message || 'Failed to save task. Original data has been kept.';
@@ -386,10 +406,7 @@ export const TaskFormPage: React.FC = () => {
         setSaving(true);
         await updateTask(taskId, updatePayload);
         setOriginalSnapshot(editedSnapshot);
-        setSuccessToast('Task Updated Successfully!');
-        setTimeout(() => {
-          navigate('/');
-        }, 700);
+        showSuccessAndNavigate('Task Updated Successfully!');
       } catch (err: any) {
         console.error('Error saving task:', err);
         setError(err.message || 'Failed to save task.');
@@ -422,10 +439,7 @@ export const TaskFormPage: React.FC = () => {
         remarks: remarks.trim(),
         monthYear,
       });
-      setSuccessToast('Task Created Successfully!');
-      setTimeout(() => {
-        navigate('/');
-      }, 700);
+      showSuccessAndNavigate('Task Created Successfully!');
     } catch (err: any) {
       console.error('Error saving task:', err);
       setError(err.message || 'Failed to save task.');
@@ -569,7 +583,13 @@ export const TaskFormPage: React.FC = () => {
         {/* Success / Error notification toasts */}
         {successToast && (
           <div className="max-w-3xl mx-auto px-4 mt-3">
-            <div className="p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-xs font-medium flex items-center space-x-2 animate-fadeIn">
+            <div
+              role="status"
+              data-testid="task-success-toast"
+              className={`p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-xs font-medium flex items-center space-x-2 ${
+                isToastExiting ? 'animate-toast-exit' : 'animate-toast-enter'
+              }`}
+            >
               <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
               <span>{successToast}</span>
             </div>
