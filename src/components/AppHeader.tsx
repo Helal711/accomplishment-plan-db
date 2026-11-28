@@ -79,6 +79,12 @@ interface AppHeaderProps {
   onSelectStatus?: (status: string | null) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  resultCountLabel?: string;
+  filteredCount?: number;
+  loadingTasks?: boolean;
+  hasActiveFilter?: boolean;
+  hasClearableFilter?: boolean;
+  onClearFilters?: () => void;
   onOpenMonthSelector: () => void;
   isMonthModalOpen?: boolean;
   onOpenExport: () => void;
@@ -96,6 +102,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onSelectStatus,
   searchQuery,
   onSearchChange,
+  resultCountLabel = '',
+  filteredCount = totalCount,
+  loadingTasks = false,
+  hasActiveFilter = false,
+  hasClearableFilter = false,
+  onClearFilters,
   onOpenMonthSelector,
   isMonthModalOpen = false,
   onOpenExport,
@@ -277,56 +289,103 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       </div>
 
-      {/* Compact Expandable Search Box: Smooth open/close transition, 248px top-right on Desktop, full-width on Mobile */}
+      {/* Unified Result Count + Compact Search Row directly below the blue header */}
       <div
-        id="dashboard-search-box"
-        data-testid="header-search-container"
-        data-open={isSearchOpen ? 'true' : 'false'}
-        aria-hidden={!isSearchOpen}
-        className="search-panel-collapse bg-white"
+        data-testid="task-result-count-bar"
+        className="bg-white border-b border-gray-200"
       >
-        <div className="search-panel-inner">
-          <div className="px-2 sm:px-4 py-1.5">
-            <div className="max-w-4xl mx-auto flex justify-end">
-              <div className="relative flex items-center w-full sm:w-[248px]">
-                <Search className="w-3.5 h-3.5 text-app-primary/70 absolute left-2.5 pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  tabIndex={isSearchOpen ? 0 : -1}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      if (searchQuery) {
-                        onSearchChange('');
-                      } else {
-                        setIsSearchOpen(false);
-                      }
-                    }
-                  }}
-                  aria-label="Search tasks"
-                  data-testid="header-search-input"
-                  placeholder="Search tasks..."
-                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-gray-50/70 focus:bg-white text-gray-800 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary/30 focus:border-app-primary transition-all duration-200"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
+        <div className="max-w-4xl mx-auto px-2 sm:px-4 py-1.5 sm:min-h-[42px] flex flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          {/* Left: Dynamic Result Count + subtle Month/Year + Clear Filter */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+            {loadingTasks ? (
+              <span className="text-[11px] sm:text-xs font-medium text-gray-400">
+                Loading tasks...
+              </span>
+            ) : (
+              <span
+                data-testid="task-result-count"
+                className={`text-[11px] sm:text-xs font-semibold leading-tight transition-colors ${
+                  filteredCount === 0
+                    ? 'text-amber-700'
+                    : hasActiveFilter
+                      ? 'text-app-primary'
+                      : 'text-gray-700'
+                }`}
+              >
+                {resultCountLabel}
+              </span>
+            )}
+            <span aria-hidden="true" className="text-gray-300 text-[10px] select-none">
+              •
+            </span>
+            <span
+              data-testid="active-month-label"
+              className="text-[10.5px] sm:text-[11px] font-medium text-gray-400 leading-tight flex-shrink-0"
+            >
+              {selectedMonth}
+            </span>
+            {!loadingTasks && hasClearableFilter && onClearFilters && (
+              <button
+                type="button"
+                onClick={onClearFilters}
+                data-testid="clear-active-filters-btn"
+                className="text-[11px] sm:text-xs font-semibold text-app-primary hover:underline flex-shrink-0 py-0.5 px-1 rounded transition-colors"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
+
+          {/* Right (Desktop) / Second Compact Row (Mobile): Expandable Compact Search Box */}
+          <div
+            id="dashboard-search-box"
+            data-testid="header-search-container"
+            data-open={isSearchOpen ? 'true' : 'false'}
+            aria-hidden={!isSearchOpen}
+            className="search-panel-collapse"
+          >
+            <div className="search-panel-inner">
+              <div className="p-0.5">
+                <div className="relative flex items-center w-full sm:w-[248px]">
+                  <Search className="w-3.5 h-3.5 text-app-primary/70 absolute left-2.5 pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
                     tabIndex={isSearchOpen ? 0 : -1}
-                    onClick={() => {
-                      onSearchChange('');
-                      searchInputRef.current?.focus();
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        if (searchQuery) {
+                          onSearchChange('');
+                        } else {
+                          setIsSearchOpen(false);
+                        }
+                      }
                     }}
-                    aria-label="Clear search"
-                    title="Clear search"
-                    data-testid="header-search-clear-btn"
-                    className="absolute right-1.5 p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                    aria-label="Search tasks"
+                    data-testid="header-search-input"
+                    placeholder="Search tasks..."
+                    className="w-full pl-8 pr-7 py-1.5 text-xs bg-gray-50/70 focus:bg-white text-gray-800 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-app-primary/30 focus:border-app-primary transition-all duration-200"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      tabIndex={isSearchOpen ? 0 : -1}
+                      onClick={() => {
+                        onSearchChange('');
+                        searchInputRef.current?.focus();
+                      }}
+                      aria-label="Clear search"
+                      title="Clear search"
+                      data-testid="header-search-clear-btn"
+                      className="absolute right-1.5 p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -127,33 +127,63 @@
   }
 }
 
-/* Smooth Search Box open/close collapse transition (0px height when closed) */
+/* Smooth Search Box open/close transition: stacked row on mobile, inline right-aligned on desktop */
 .search-panel-collapse {
   display: grid;
   grid-template-rows: 0fr;
+  width: 100%;
+  margin-top: 0;
   opacity: 0;
   pointer-events: none;
-  border-bottom: 0 solid transparent;
   transition:
     grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 220ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .search-panel-collapse[data-open='true'] {
   grid-template-rows: 1fr;
+  margin-top: 0.375rem;
   opacity: 1;
   pointer-events: auto;
-  border-bottom: 1px solid #e5e7eb;
 }
 
 .search-panel-inner {
   overflow: hidden;
+  min-height: 0;
   transform: translateY(-4px);
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .search-panel-collapse[data-open='true'] .search-panel-inner {
   transform: translateY(0);
+}
+
+@media (min-width: 640px) {
+  .search-panel-collapse {
+    display: block;
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 0;
+    margin-top: 0;
+    overflow: hidden;
+    transform: translateX(6px);
+    transition:
+      max-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .search-panel-collapse[data-open='true'] {
+    max-width: 256px;
+    margin-top: 0;
+    transform: translateX(0);
+  }
+
+  .search-panel-inner {
+    transform: none;
+    transition: none;
+  }
 }
 
 /* Smooth Month Dropdown modal open/close transitions */

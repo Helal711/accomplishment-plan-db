@@ -324,6 +324,12 @@ export const DashboardPage: React.FC = () => {
           onSelectStatus={setSelectedStatus}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          resultCountLabel={resultCountLabel}
+          filteredCount={filteredTasks.length}
+          loadingTasks={loadingTasks}
+          hasActiveFilter={hasActiveFilter}
+          hasClearableFilter={hasClearableFilter}
+          onClearFilters={handleClearFilters}
           onOpenMonthSelector={() => setShowMonthModal(true)}
           isMonthModalOpen={showMonthModal}
           onOpenExport={() => setShowExportModal(true)}
@@ -334,46 +340,10 @@ export const DashboardPage: React.FC = () => {
 
         {/* Content Container with bottom padding for fixed footer & FAB */}
         <main
-          className={`max-w-4xl mx-auto px-1.5 sm:px-4 pt-1 pb-20 sm:py-4 sm:pb-28 ${
+          className={`max-w-4xl mx-auto px-1.5 sm:px-4 pt-2 pb-20 sm:py-3.5 sm:pb-28 ${
             playInitialEntrance ? 'animate-dashboard-enter' : ''
           }`}
         >
-          {!loadingTasks && (
-            <div
-              data-testid="task-result-count-bar"
-              className={`mb-1.5 sm:mb-2.5 px-2.5 sm:px-3 py-1.5 rounded-lg border flex items-center justify-between gap-2 text-[11px] sm:text-xs transition-colors ${
-                filteredTasks.length === 0
-                  ? 'bg-amber-50/70 border-amber-200 text-amber-800'
-                  : hasActiveFilter
-                    ? 'bg-blue-50/70 border-blue-200 text-app-primary'
-                    : 'bg-white border-gray-200 text-gray-600'
-              }`}
-            >
-              <span data-testid="task-result-count" className="font-semibold truncate">
-                {resultCountLabel}
-              </span>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span
-                  data-testid="active-month-label"
-                  className={`text-[10.5px] sm:text-[11px] flex-shrink-0 ${
-                    hasActiveFilter ? 'opacity-80' : 'text-gray-400'
-                  }`}
-                >
-                  {selectedMonth}
-                </span>
-                {hasClearableFilter && (
-                  <button
-                    type="button"
-                    onClick={handleClearFilters}
-                    data-testid="clear-active-filters-btn"
-                    className="text-[11px] sm:text-xs font-semibold text-app-primary hover:underline flex-shrink-0 py-0.5 px-1 -mr-1"
-                  >
-                    Clear Filter
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
           {loadingTasks ? (
             <div className="py-20 text-center">
